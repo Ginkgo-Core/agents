@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { agentEnabled, closeInfrastructure, database, jobs, serviceTokenIsValid, writeAudit } from './lib.js';
-import { agentIds, isAgentId, type AgentId, type RiskLevel } from './types.js';
+import { isAgentId, type AgentId, type JobName, type RiskLevel } from './types.js';
 
 const app = Fastify({ logger: true });
 const port = Number(process.env.PORT ?? 8088);
@@ -25,6 +25,19 @@ const approvalSchema = z.object({
   decidedBy: z.string().min(1).max(120),
   reason: z.string().max(500).optional(),
 });
+
+const eventSchema = z.object({
+  source: z.string().min(1).max(80),
+  payload: z.record(z.string(), z.unknown()).default({}),
+  correlationId: z.string().uuid().optional(),
+  idempotencyKey: z.string().min(8).max(160),
+});
+
+const eventJobs: Record<string, JobName> = {
+  channel: 'channel.event',
+  voice: 'voice.event',
+  attribution: 'attribution.event',
+};
 
 const allowedTools: Record<AgentId, Record<string, RiskLevel>> = {
   callima: {
@@ -105,7 +118,16 @@ app.post('/v1/agents/:agentId/runs', async (request, reply) => {
     payload: { runId, source: body.source, input: body.input },
   }, { jobId: idempotencyKey });
 
-  await writeAudit({ correlationId, actorType: 'service', actorId: 'control-plane', eventType: 'agent.run.queued', resourceType: 'agent_run', resourceId: runId, payload: { agentId } });
+  await writeAudit({
+    correlationId,
+    actorType: 'service',
+    actorId: 'control-plane',
+    eventType: 'agent.run.queued',
+    resourceType: 'agent_run',
+    resourceId: runId,
+    payload: { agentId },
+  });
+
   return reply.code(202).send({ runId, correlationId, status: 'queued' });
 });
 
@@ -113,6 +135,7 @@ app.post('/v1/tools/:agentId/:toolName', async (request, reply) => {
   requireAuth(request.headers.authorization);
   const { agentId, toolName } = request.params as { agentId: string; toolName: string };
   if (!isAgentId(agentId)) return reply.code(404).send({ error: 'Unknown agent' });
+
   const riskLevel = allowedTools[agentId][toolName];
   if (!riskLevel) return reply.code(403).send({ error: 'Tool not allowed' });
   if (toolName === 'ads.mutate' && process.env.ALFRED_MUTATIONS_ENABLED !== 'true') {
@@ -129,6 +152,7 @@ app.post('/v1/tools/:agentId/:toolName', async (request, reply) => {
      RETURNING id`,
     [correlationId, body.idempotencyKey, agentId, toolName, riskLevel, JSON.stringify(body.payload)],
   );
+
   const toolCallId = inserted.rows[0]?.id;
   if (!toolCallId) throw new Error('Failed to create tool call');
 
@@ -141,7 +165,14 @@ app.post('/v1/tools/:agentId/:toolName', async (request, reply) => {
        RETURNING id`,
       [correlationId, toolCallId, agentId, toolName, JSON.stringify(body.payload), expiresAt],
     );
-    return reply.code(202).send({ toolCallId, approvalId: approval.rows[0]?.id, correlationId, status: 'approval_required', riskLevel });
+
+    return reply.code(202).send({
+      toolCallId,
+      approvalId: approval.rows[0]?.id,
+      correlationId,
+      status: 'approval_required',
+      riskLevel,
+    });
   }
 
   await jobs.add('tool.execute', {
@@ -190,25 +221,49 @@ app.post('/v1/approvals/:approvalId/decision', async (request, reply) => {
     }, { jobId: `approval:${approvalId}` });
   }
 
-  await writeAudit({ correlationId: approval.correlation_id, actorType: 'human', actorId: body.decidedBy, eventType: `approval.${body.decision}`, resourceType: 'approval', resourceId: approvalId, payload: { reason: body.reason } });
+  await writeAudit({
+    correlationId: approval.correlation_id,
+    actorType: 'human',
+    actorId: body.decidedBy,
+    eventType: `approval.${body.decision}`,
+    resourceType: 'approval',
+    resourceId: approvalId,
+    payload: { reason: body.reason },
+  });
+
   return { approvalId, status: body.decision };
 });
 
-for (const route of [
-  { path: '/webhooks/evolution', job: 'channel.event' as const },
-  { path: '/webhooks/elevenlabs', job: 'voice.event' as const },
-  { path: '/webhooks/utmify', job: 'attribution.event' as const },
-]) {
-  app.post(route.path, async (request, reply) => {
-    const correlationId = randomUUID();
-    const idempotencyKey = String(request.headers['x-event-id'] ?? correlationId);
-    await jobs.add(route.job, { correlationId, idempotencyKey, payload: { body: request.body, headers: request.headers } }, { jobId: `${route.job}:${idempotencyKey}` });
-    return reply.code(202).send({ accepted: true, correlationId });
+app.post('/v1/events/:eventType', async (request, reply) => {
+  requireAuth(request.headers.authorization);
+  const { eventType } = request.params as { eventType: string };
+  const jobName = eventJobs[eventType];
+  if (!jobName) return reply.code(404).send({ error: 'Unknown event type' });
+
+  const body = eventSchema.parse(request.body);
+  const correlationId = body.correlationId ?? randomUUID();
+
+  await jobs.add(jobName, {
+    correlationId,
+    idempotencyKey: body.idempotencyKey,
+    payload: { source: body.source, ...body.payload },
+  }, { jobId: `${jobName}:${body.idempotencyKey}` });
+
+  await writeAudit({
+    correlationId,
+    actorType: 'service',
+    actorId: body.source,
+    eventType: `${jobName}.accepted`,
+    payload: { idempotencyKey: body.idempotencyKey },
   });
-}
+
+  return reply.code(202).send({ accepted: true, correlationId });
+});
 
 app.setErrorHandler((error, _request, reply) => {
-  if (error instanceof z.ZodError) return reply.code(400).send({ error: 'Invalid request', details: error.issues });
+  if (error instanceof z.ZodError) {
+    return reply.code(400).send({ error: 'Invalid request', details: error.issues });
+  }
   const statusCode = (error as Error & { statusCode?: number }).statusCode ?? 500;
   app.log.error(error);
   return reply.code(statusCode).send({ error: statusCode === 500 ? 'Internal error' : error.message });
