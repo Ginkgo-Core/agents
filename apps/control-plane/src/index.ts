@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { agentEnabled, closeInfrastructure, database, jobs, serviceTokenIsValid, writeAudit } from './lib.js';
+import { loadAgentRuntimeContext } from './profile.js';
 import { isAgentId, type AgentId, type JobName, type RiskLevel } from './types.js';
 
 const app = Fastify({ logger: true });
@@ -89,6 +90,21 @@ app.get('/v1/agents', async (request) => {
   return { data: result.rows };
 });
 
+app.get('/v1/agents/:agentId/runtime-context', async (request, reply) => {
+  requireAuth(request.headers.authorization);
+  const { agentId } = request.params as { agentId: string };
+  if (!isAgentId(agentId)) return reply.code(404).send({ error: 'Unknown agent' });
+
+  const context = await loadAgentRuntimeContext(agentId);
+  return {
+    data: context,
+    usage: {
+      instruction: 'Use soul as persistent system behavior. Merge event, memory and tool state after it without overriding guardrails.',
+      order: ['soul', 'agent_config', 'event_context', 'authorized_memory', 'available_tools'],
+    },
+  };
+});
+
 app.post('/v1/agents/:agentId/runs', async (request, reply) => {
   requireAuth(request.headers.authorization);
   const { agentId } = request.params as { agentId: string };
@@ -98,6 +114,7 @@ app.post('/v1/agents/:agentId/runs', async (request, reply) => {
   const body = runSchema.parse(request.body);
   const correlationId = body.correlationId ?? randomUUID();
   const idempotencyKey = body.idempotencyKey ?? correlationId;
+  const runtimeContext = await loadAgentRuntimeContext(agentId);
 
   const inserted = await database.query<{ id: string }>(
     `INSERT INTO agents.agent_runs
@@ -105,7 +122,7 @@ app.post('/v1/agents/:agentId/runs', async (request, reply) => {
      VALUES ($1, $2, $3, $4, $5::jsonb)
      ON CONFLICT (idempotency_key) DO UPDATE SET idempotency_key = EXCLUDED.idempotency_key
      RETURNING id`,
-    [correlationId, idempotencyKey, agentId, body.source, JSON.stringify(body.input)],
+    [correlationId, idempotencyKey, agentId, body.source, JSON.stringify({ ...body.input, profileFingerprint: runtimeContext.fingerprint })],
   );
 
   const runId = inserted.rows[0]?.id;
@@ -115,7 +132,12 @@ app.post('/v1/agents/:agentId/runs', async (request, reply) => {
     correlationId,
     idempotencyKey,
     agentId,
-    payload: { runId, source: body.source, input: body.input },
+    payload: {
+      runId,
+      source: body.source,
+      input: body.input,
+      profileFingerprint: runtimeContext.fingerprint,
+    },
   }, { jobId: idempotencyKey });
 
   await writeAudit({
@@ -125,10 +147,15 @@ app.post('/v1/agents/:agentId/runs', async (request, reply) => {
     eventType: 'agent.run.queued',
     resourceType: 'agent_run',
     resourceId: runId,
-    payload: { agentId },
+    payload: { agentId, profileFingerprint: runtimeContext.fingerprint },
   });
 
-  return reply.code(202).send({ runId, correlationId, status: 'queued' });
+  return reply.code(202).send({
+    runId,
+    correlationId,
+    status: 'queued',
+    profileFingerprint: runtimeContext.fingerprint,
+  });
 });
 
 app.post('/v1/tools/:agentId/:toolName', async (request, reply) => {
