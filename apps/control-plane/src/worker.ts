@@ -1,8 +1,6 @@
 import { Worker, type Job } from 'bullmq';
-import { database, requiredEnv, writeAudit } from './lib.js';
+import { database, redisConnection, requiredEnv, writeAudit } from './lib.js';
 import type { JobEnvelope, JobName } from './types.js';
-
-const redisUrl = requiredEnv('REDIS_URL');
 
 const routes: Record<JobName, string> = {
   'agent.run': requiredEnv('N8N_AGENT_DISPATCH_WEBHOOK'),
@@ -27,7 +25,12 @@ async function postJson(url: string, body: unknown): Promise<unknown> {
     });
     const text = await response.text();
     if (!response.ok) throw new Error(`Webhook ${response.status}: ${text.slice(0, 500)}`);
-    return text ? JSON.parse(text) : {};
+    if (!text) return {};
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      return { raw: text.slice(0, 1_000) };
+    }
   } finally {
     clearTimeout(timeout);
   }
@@ -35,8 +38,7 @@ async function postJson(url: string, body: unknown): Promise<unknown> {
 
 async function processJob(job: Job<JobEnvelope, void, JobName>): Promise<void> {
   const startedAt = Date.now();
-  const url = routes[job.name];
-  const output = await postJson(url, {
+  const output = await postJson(routes[job.name], {
     event: job.name,
     correlationId: job.data.correlationId,
     idempotencyKey: job.data.idempotencyKey,
@@ -54,24 +56,33 @@ async function processJob(job: Job<JobEnvelope, void, JobName>): Promise<void> {
 
   if (job.name === 'agent.run') {
     const runId = String(job.data.payload.runId ?? '');
-    if (runId) await database.query("UPDATE agents.agent_runs SET status = 'dispatched', updated_at = now() WHERE id = $1", [runId]);
+    if (runId) {
+      await database.query(
+        "UPDATE agents.agent_runs SET status = 'dispatched', updated_at = now() WHERE id = $1",
+        [runId],
+      );
+    }
   }
 }
 
 const worker = new Worker<JobEnvelope, void, JobName>('ginkgo-agents', processJob, {
-  connection: { url: redisUrl },
+  connection: redisConnection,
   concurrency: Number(process.env.WORKER_CONCURRENCY ?? 10),
 });
 
 worker.on('failed', async (job, error) => {
   if (!job) return;
-  await writeAudit({
-    correlationId: job.data.correlationId,
-    actorType: 'worker',
-    actorId: 'bullmq-worker',
-    eventType: `${job.name}.failed`,
-    payload: { message: error.message, attemptsMade: job.attemptsMade },
-  });
+  try {
+    await writeAudit({
+      correlationId: job.data.correlationId,
+      actorType: 'worker',
+      actorId: 'bullmq-worker',
+      eventType: `${job.name}.failed`,
+      payload: { message: error.message, attemptsMade: job.attemptsMade },
+    });
+  } catch (auditError) {
+    console.error(JSON.stringify({ level: 'error', message: 'failed to write audit', auditError }));
+  }
 });
 
 async function shutdown(signal: string): Promise<void> {
