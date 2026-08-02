@@ -264,9 +264,13 @@ app.setErrorHandler((error, _request, reply) => {
   if (error instanceof z.ZodError) {
     return reply.code(400).send({ error: 'Invalid request', details: error.issues });
   }
-  const statusCode = (error as Error & { statusCode?: number }).statusCode ?? 500;
-  app.log.error(error);
-  return reply.code(statusCode).send({ error: statusCode === 500 ? 'Internal error' : error.message });
+
+  const typedError = error instanceof Error ? error : new Error('Unknown error');
+  const statusCode = (typedError as Error & { statusCode?: number }).statusCode ?? 500;
+  app.log.error(typedError);
+  return reply.code(statusCode).send({
+    error: statusCode === 500 ? 'Internal error' : typedError.message,
+  });
 });
 
 async function shutdown(signal: string): Promise<void> {
