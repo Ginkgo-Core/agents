@@ -1,0 +1,259 @@
+name: ${COMPOSE_PROJECT_NAME:-ginkgo-agents}
+
+networks:
+  agents:
+    driver: bridge
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ginkgo-agents-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [agents]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ginkgo-agents-redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./data/redis:/data
+    networks: [agents]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  litellm:
+    image: ${LITELLM_IMAGE}
+    container_name: ginkgo-agents-litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      FAST_MODEL: ${FAST_MODEL}
+      REASONING_MODEL: ${REASONING_MODEL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:${LITELLM_PORT:-4000}:4000"
+    volumes:
+      - ./config/litellm/config.yaml:/app/config.yaml:ro
+    networks: [agents]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  n8n:
+    image: ${N8N_IMAGE}
+    container_name: ginkgo-agents-n8n
+    environment: &n8n-env
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_POSTGRESDB_SCHEMA: n8n
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      QUEUE_BULL_REDIS_DB: 0
+      QUEUE_HEALTH_CHECK_ACTIVE: "true"
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE}
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      GENERIC_TIMEZONE: ${TZ}
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    networks: [agents]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  n8n-worker:
+    image: ${N8N_IMAGE}
+    container_name: ginkgo-agents-n8n-worker
+    command: ["worker", "--concurrency=${N8N_WORKER_CONCURRENCY:-5}"]
+    environment: *n8n-env
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    networks: [agents]
+    depends_on:
+      n8n:
+        condition: service_started
+    restart: unless-stopped
+
+  control-plane:
+    build:
+      context: ./apps/control-plane
+    container_name: ginkgo-agents-control-plane
+    command: ["node", "dist/index.js"]
+    environment: &control-env
+      NODE_ENV: ${NODE_ENV}
+      PORT: 8088
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://default:${REDIS_PASSWORD}@redis:6379/1
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      APPROVAL_TTL_MINUTES: ${APPROVAL_TTL_MINUTES:-60}
+      MAX_JOB_ATTEMPTS: ${MAX_JOB_ATTEMPTS:-3}
+      N8N_AGENT_DISPATCH_WEBHOOK: ${N8N_AGENT_DISPATCH_WEBHOOK}
+      N8N_TOOL_DISPATCH_WEBHOOK: ${N8N_TOOL_DISPATCH_WEBHOOK}
+      N8N_EVENT_DISPATCH_WEBHOOK: ${N8N_EVENT_DISPATCH_WEBHOOK}
+      HERMES_BASE_URL: http://hermes:8642
+      HERMES_API_KEY: ${HERMES_API_KEY}
+      LITELLM_BASE_URL: http://litellm:4000/v1
+      LITELLM_API_KEY: ${LITELLM_MASTER_KEY}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_WEBHOOK_SECRET: ${ELEVENLABS_WEBHOOK_SECRET:-}
+      ALFRED_MUTATIONS_ENABLED: ${ALFRED_MUTATIONS_ENABLED:-false}
+      ALFRED_MAX_DAILY_BUDGET_CHANGE_PERCENT: ${ALFRED_MAX_DAILY_BUDGET_CHANGE_PERCENT:-20}
+      MEDIA_DIRECTORY: /app/data/media
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:${CONTROL_PLANE_PORT:-8088}:8088"
+    volumes:
+      - ./data/media:/app/data/media
+      - ./config/agents:/app/config/agents:ro
+    networks: [agents]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./apps/control-plane
+    container_name: ginkgo-agents-worker
+    command: ["node", "dist/worker.js"]
+    environment: *control-env
+    volumes:
+      - ./data/media:/app/data/media
+      - ./config/agents:/app/config/agents:ro
+    networks: [agents]
+    depends_on:
+      control-plane:
+        condition: service_started
+      n8n:
+        condition: service_started
+    restart: unless-stopped
+
+  hermes:
+    image: ${HERMES_IMAGE}
+    container_name: ginkgo-agents-hermes
+    command: gateway run
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_PORT: 8642
+      API_SERVER_KEY: ${HERMES_API_KEY}
+      HERMES_DASHBOARD: ${HERMES_DASHBOARD:-1}
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${HERMES_DASHBOARD_USER}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${HERMES_DASHBOARD_PASSWORD}
+      HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_SECRET}
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
+      OPENAI_BASE_URL: http://litellm:4000/v1
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:${HERMES_API_PORT:-8642}:8642"
+      - "127.0.0.1:${HERMES_DASHBOARD_PORT:-9119}:9119"
+    volumes:
+      - ./data/hermes:/opt/data
+    shm_size: 1gb
+    networks: [agents]
+    depends_on:
+      litellm:
+        condition: service_started
+      control-plane:
+        condition: service_started
+    restart: unless-stopped
+
+  evolution-api:
+    image: ${EVOLUTION_IMAGE}
+    container_name: ginkgo-agents-evolution
+    profiles: ["channels"]
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: ${EVOLUTION_SERVER_URL}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      LANGUAGE: pt-BR
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=evolution_api
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://default:${REDIS_PASSWORD}@redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      N8N_ENABLED: "true"
+      TELEMETRY_ENABLED: "false"
+      TZ: ${TZ}
+    ports:
+      - "127.0.0.1:${EVOLUTION_API_PORT:-8080}:8080"
+    volumes:
+      - ./data/evolution:/evolution/instances
+    networks: [agents]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: ginkgo-agents-minio
+    profiles: ["media"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - ./data/minio:/data
+    networks: [agents]
+    restart: unless-stopped
