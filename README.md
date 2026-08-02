@@ -31,6 +31,36 @@ Este projeto é isolado do produto comercial `ginkgo-workforce`.
 - ElevenLabs, ComfyUI, Meta, TikTok, UTMify e Datacrazy por adapters externos;
 - MinIO opcional para artefatos de mídia.
 
+## Identidade dos agentes
+
+Cada funcionário digital possui um contrato executável e um `SOUL.md` versionado:
+
+```text
+agents/
+├── callima/SOUL.md
+├── nyra/SOUL.md
+└── alfred/SOUL.md
+
+config/agents/
+├── callima.yaml
+├── nyra.yaml
+└── alfred.yaml
+```
+
+Os SOULs definem identidade, comunicação, iniciativa, memória, estados comunicacionais simulados, eventos proativos e critérios de sucesso. Os contratos YAML definem tools, canais, risco, horários, relatórios e limites de autonomia.
+
+O Control Plane carrega ambos, calcula uma fingerprint SHA-256 e registra a versão usada em cada run.
+
+```http
+GET /v1/agents/callima/runtime-context
+Authorization: Bearer <INTERNAL_SERVICE_TOKEN>
+```
+
+Consulte:
+
+- `docs/SOUL_RUNTIME.md`;
+- `docs/PROACTIVE_EVENTS.md`.
+
 ## Início rápido
 
 ```bash
