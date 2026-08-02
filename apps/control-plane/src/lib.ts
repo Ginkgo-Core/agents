@@ -10,6 +10,20 @@ export function requiredEnv(name: string): string {
   return value;
 }
 
+function buildRedisConnection() {
+  const redisUrl = new URL(requiredEnv('REDIS_URL'));
+  return {
+    host: redisUrl.hostname,
+    port: Number(redisUrl.port || 6379),
+    db: Number(redisUrl.pathname.replace('/', '') || 0),
+    maxRetriesPerRequest: null,
+    ...(redisUrl.username ? { username: decodeURIComponent(redisUrl.username) } : {}),
+    ...(redisUrl.password ? { password: decodeURIComponent(redisUrl.password) } : {}),
+  };
+}
+
+export const redisConnection = buildRedisConnection();
+
 export const database = new Pool({
   connectionString: requiredEnv('DATABASE_URL'),
   max: 10,
@@ -17,7 +31,7 @@ export const database = new Pool({
 });
 
 export const jobs = new Queue<JobEnvelope, void, JobName>('ginkgo-agents', {
-  connection: { url: requiredEnv('REDIS_URL') },
+  connection: redisConnection,
   defaultJobOptions: {
     attempts: Number(process.env.MAX_JOB_ATTEMPTS ?? 3),
     backoff: { type: 'exponential', delay: 2_000 },
