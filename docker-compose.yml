@@ -136,6 +136,8 @@ services:
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       APPROVAL_TTL_MINUTES: ${APPROVAL_TTL_MINUTES:-60}
       MAX_JOB_ATTEMPTS: ${MAX_JOB_ATTEMPTS:-3}
+      AGENT_PROJECT_ROOT: /app
+      AGENT_CONFIG_ROOT: /app/config/agents
       N8N_AGENT_DISPATCH_WEBHOOK: ${N8N_AGENT_DISPATCH_WEBHOOK}
       N8N_TOOL_DISPATCH_WEBHOOK: ${N8N_TOOL_DISPATCH_WEBHOOK}
       N8N_EVENT_DISPATCH_WEBHOOK: ${N8N_EVENT_DISPATCH_WEBHOOK}
@@ -154,6 +156,7 @@ services:
     volumes:
       - ./data/media:/app/data/media
       - ./config/agents:/app/config/agents:ro
+      - ./agents:/app/agents:ro
     networks: [agents]
     depends_on:
       postgres:
@@ -173,6 +176,7 @@ services:
     volumes:
       - ./data/media:/app/data/media
       - ./config/agents:/app/config/agents:ro
+      - ./agents:/app/agents:ro
     networks: [agents]
     depends_on:
       control-plane:
@@ -196,12 +200,15 @@ services:
       HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_SECRET}
       OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
       OPENAI_BASE_URL: http://litellm:4000/v1
+      GINKGO_CONTROL_PLANE_URL: http://control-plane:8088
       TZ: ${TZ}
     ports:
       - "127.0.0.1:${HERMES_API_PORT:-8642}:8642"
       - "127.0.0.1:${HERMES_DASHBOARD_PORT:-9119}:9119"
     volumes:
       - ./data/hermes:/opt/data
+      - ./agents:/opt/ginkgo/agents:ro
+      - ./config/agents:/opt/ginkgo/config/agents:ro
     shm_size: 1gb
     networks: [agents]
     depends_on:
