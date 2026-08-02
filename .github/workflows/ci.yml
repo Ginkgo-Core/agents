@@ -13,9 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm install --ignore-scripts
+      - run: npm install --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
       - run: cp .env.example .env
-      - run: sed -i 's/CHANGE_ME/ci-placeholder-secret/g' .env
+      - run: sed -i 's/CHANGE_ME[^[:space:]]*/ci-placeholder-secret/g' .env
       - run: docker compose config
