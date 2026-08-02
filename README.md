@@ -58,6 +58,9 @@ Authorization: Bearer <INTERNAL_SERVICE_TOKEN>
 
 Consulte:
 
+- `agents/callima/SOUL.md`;
+- `agents/nyra/SOUL.md`;
+- `agents/alfred/SOUL.md`;
 - `docs/SOUL_RUNTIME.md`;
 - `docs/PROACTIVE_EVENTS.md`.
 
