@@ -1,245 +1,404 @@
 # Ginkgo Skill Runtime Contract
 
-> Caller-agnostic execution contract for the existing Ginkgo Skill Atlas.
+> P0-aligned runtime contract for the existing Ginkgo Skill Atlas.
 >
-> This document does **not** create a second Atlas. It defines the stable runtime boundary used by callers while `SKILL_ATLAS.md` remains the lifecycle, governance, eval and promotion manual.
+> This document does **not** define or duplicate the core JSON Schemas. The canonical contracts are owned by `Ginkgo-Core/ai-stack` under `contracts/core/*`. `SKILL_ATLAS.md` remains the lifecycle, governance, eval and promotion manual for this repository.
 
-## Canonical runtime path
+## P0 source of truth
+
+Canonical contracts:
+
+- `Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json` — **CapabilityRequest v1**
+- `Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json` — **CapabilityResult v1**
+- `Ginkgo-Core/ai-stack/contracts/core/approval.schema.json` — Approval state machine
+- `Ginkgo-Core/ai-stack/contracts/core/external-gate.schema.json` — External Gate state machine
+- `Ginkgo-Core/ai-stack/contracts/core/evidence.schema.json` — execution/claim evidence
+- `Ginkgo-Core/ai-stack/contracts/core/error.schema.json` — normalized errors
+
+Architecture precedence for this runtime boundary follows the P0 freeze in `Ginkgo-Core/ai-stack#15`.
+
+This repository references those contracts; it does not fork them.
+
+## Canonical capability path
 
 ```mermaid
 flowchart LR
-    C[Caller] --> SRC[Skill Runtime Contract]
-    SRC --> B[Capability Bus]
-    B --> R[Router + Policy]
-    R --> A[Adapter / Provider]
-    A --> N[Normalized Result]
-    N --> C
+    C[Caller] --> CR[CapabilityRequest v1]
+    CR --> B[Capability Bus]
+    B --> DR[Domain Router]
+    DR --> S[skill / version]
+    S --> A[adapter]
+    A --> P[provider]
+    P --> R[CapabilityResult v1]
+    R --> C
 ```
 
-Supported callers include n8n/Callima, Hermes, OpenClaw, Sylvia and future agents. A caller depends on the **skill contract**, never on provider-specific URLs, credentials, SDK types or model IDs.
+Operational executor selection is a separate path:
 
-## Core invariant
+```mermaid
+flowchart LR
+    T[TaskOps] --> ER[Executor Router]
+    ER --> H[Human]
+    ER --> N[n8n]
+    ER --> HE[Hermes]
+    ER --> O[OpenClaw]
+    ER --> S[Sylvia]
+```
+
+`Domain Router != Executor Router`.
+
+The Domain Router resolves semantic implementation routing. The Executor Router assigns operational work. Neither absorbs the other's responsibility.
+
+## Caller semantics
+
+A caller expresses **capability intent**, not implementation choice.
 
 ```text
-CALLER != SKILL != CAPABILITY != TOOL != PROVIDER
+caller
+  -> capability.name
+  -> capability.contract_version
+  -> input / constraints / governance context
 ```
 
-The caller selects a skill by purpose. The Capability Bus and Router resolve the implementation allowed by policy and evidence.
+The Domain Router resolves:
+
+```text
+capability
+  -> skill_id
+  -> skill_version
+  -> adapter
+  -> provider
+```
+
+The caller must never select `skill_id`, `skill_version`, adapter, raw endpoint, credential, secret or provider implementation. `constraints.allowed_providers`, when present in the canonical request, is an eligibility restriction/allowlist; it does not transfer final provider selection to the caller.
+
+Public capability names are provider-agnostic. Provider identity belongs to internal bindings/adapters.
+
+## CapabilityRequest v1
+
+The authoritative shape is the P0 JSON Schema in `Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json`.
+
+The following is a **non-authoritative field map** for Atlas authors:
+
+```yaml
+request_id: required
+correlation_id: required
+task_id: optional
+execution_id: optional
+
+caller:
+  actor_id: required
+  actor_type: required
+  tenant_id: required
+  workspace_id: required
+
+capability:
+  name: required
+  contract_version: required
+
+input: object
+
+constraints:
+  deadline: optional
+  max_cost: optional
+  data_classification: optional
+  allowed_providers: optional
+  fallback_policy: none | same_semantics_only
+
+governance:
+  approval_context: required
+  external_gate_context: required
+
+evidence:
+  required: boolean
+
+idempotency_key: required
+```
+
+Caller-facing examples in this repository must use `capability.name` and `capability.contract_version`; they must not use caller-selected `skill_id`.
+
+## CapabilityResult v1
+
+The authoritative shape is the P0 JSON Schema in `Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json`.
+
+The following is a **non-authoritative field map** for Atlas authors:
+
+```yaml
+request_id: required
+correlation_id: required
+execution_id: required
+
+capability:
+  name: required
+  contract_version: required
+
+skill_id: router-resolved
+skill_version: router-resolved
+status: SUCCESS | PARTIAL | BLOCKED | ERROR
+output: normalized capability output
+
+routing:
+  domain: internal audit/control metadata
+  adapter_id: internal audit/control metadata
+  provider: internal audit/control metadata
+  fallback_used: boolean
+  routing_reason: string
+
+evidence_refs: []
+cost_events: []
+approval: {}
+external_gates: []
+error: null | normalized error
+```
+
+`routing.adapter_id` and `routing.provider` exist for internal audit/control. They are not caller choices and must not be exposed in an unprivileged caller projection.
+
+## Legacy compatibility aliases
+
+Historical draft envelopes may still appear in old documents or adapters:
+
+- `ginkgo.skill-request.v1`
+- `ginkgo.skill-result.v1`
+
+They are **legacy compatibility aliases/adapters only**. They are not a source of truth and must not be used as the canonical shape for new manifests or callers.
+
+Any compatibility adapter must translate:
+
+```text
+legacy request -> CapabilityRequest v1 -> Capability Bus
+CapabilityResult v1 -> legacy result projection
+```
+
+A legacy adapter must not preserve caller-selected `skill_id` as routing authority. If an old request contains `skill_id`, it may be logged for migration diagnostics but routing is determined from the provider-agnostic capability contract.
 
 ## Canonical lifecycle
 
-New manifests expose exactly one caller-facing lifecycle field:
+Caller-facing lifecycle:
 
 ```text
 FEATURE
-→ PROTOTYPE
-→ VALIDATED
-→ INTEGRATED
-→ PRODUCTION
+-> PROTOTYPE
+-> VALIDATED
+-> INTEGRATED
+-> PRODUCTION
 ```
 
-Existing Atlas maturity codes remain valid as compatibility metadata:
+Existing Atlas maturity codes remain compatibility metadata:
 
 | `lifecycle_status` | Compatible Atlas maturity | Meaning |
 |---|---|---|
-| `FEATURE` | `F0`, `F1/SPECIFIED` | candidate/specification; not routable as a trusted operational skill |
+| `FEATURE` | `F0`, `F1/SPECIFIED` | candidate/specification; **never production-routable** |
 | `PROTOTYPE` | `F2` | implementation exists but validation is incomplete |
 | `VALIDATED` | `F3`, `S1/SKILL` | reproducible evidence supports the contract; not necessarily integrated |
-| `INTEGRATED` | `S2` | wired into the agentic ecosystem under policy |
+| `INTEGRATED` | `S2` | wired into the ecosystem under policy |
 | `PRODUCTION` | `S3` | operational use with observability and production policy |
 
-`SPECIFIED` and `SKILL` are retained as internal/historical maturity detail, not additional caller-facing lifecycle stages.
+`SPECIFIED` and `SKILL` remain historical/internal maturity detail, not additional caller-facing lifecycle stages.
 
-**Nothing leaves `FEATURE` without evidence.** Evidence must identify what was tested, where it lives, and which promotion claim it supports.
+**Nothing leaves `FEATURE` without evidence, and `FEATURE` never executes in production.**
 
-## Request envelope — `ginkgo.skill-request.v1`
+## Required manifest semantics
 
-```yaml
-schema: ginkgo.skill-request.v1
-request_id: uuid-or-stable-id
-skill_id: commerce.product.evaluate
-input: {}
-constraints:
-  max_cost: null
-  latency_class: normal
-  privacy: default
-context:
-  caller: sylvia
-  correlation_id: optional
-  tenant_ref: optional
-```
-
-### Caller restrictions
-
-Unless a skill explicitly declares otherwise, callers must not provide:
+New or migrated manifests should declare at least:
 
 ```yaml
-forbidden_runtime_fields:
-  - provider
-  - tool
-  - adapter
-  - endpoint
-  - credential
-  - secret
-  - model
-  - command
-  - shell_args
-```
-
-Those are Router/Policy concerns. This prevents n8n, Hermes, OpenClaw, Sylvia or another caller from coupling itself to a specific provider.
-
-## Normalized result — `ginkgo.skill-result.v1`
-
-```yaml
-schema: ginkgo.skill-result.v1
-request_id: same-as-request
-skill_id: commerce.product.evaluate
-status: success | partial | blocked | error
-data: {}
-error:
-  code: null
-  message: null
-  retryable: false
-provenance:
-  provider: null
-  tool: null
-  adapter: null
-  observed_at: null
-  source_refs: []
-policy:
-  approval_required: false
-  approval_state: not_required | pending | approved | denied
-  fallback_used: false
-metrics:
-  duration_ms: null
-  cost: null
-```
-
-Provider-specific payloads may be preserved behind provenance/audit boundaries, but the caller receives a normalized contract.
-
-## Required manifest fields
-
-Every new skill or feature contract must define:
-
-```yaml
-id: domain.object.action
+id: internal-skill-or-binding-id
 version: 0.1.0
 lifecycle_status: FEATURE
 maturity: F1
-level: L1
-autonomy_level: A1
-purpose: ...
-capability: ...
+capability: provider-agnostic.public.capability
 
-use_when: []
-avoid_when: []
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
 
-inputs:
-  required: []
-  optional: []
-  forbidden: []
+fallback_policy: none
 
-outputs:
-  contract: ginkgo.skill-result.v1
-  data_contract: ...
+approval:
+  required: false
+  status: NOT_REQUIRED
 
-permissions: {}
-approval_required: false
-execution_mode: autonomous | supervised | connector | human_assisted
+external_gates: []
 
-preferred_tools: []
-preferred_providers: []
-fallbacks:
-  policy: explicit
-  order: []
-
-validation:
-  evidence: []
-  blockers: []
-
-promotion:
-  allowed: false
-  requires: []
-```
-
-## Permissions
-
-Permissions describe what execution may actually touch, not what a provider theoretically supports. Marketplace skills should distinguish at least:
-
-```yaml
-permissions:
-  external_network: true | false
-  marketplace_read: []
-  marketplace_write: []
-  pii: none | redacted | restricted
-  filesystem_write: none | audit_only | scoped
-  shell: false
-  secrets:
-    read_refs: []
-```
-
-A read skill must not inherit write scopes merely because the same provider also exposes mutation endpoints.
-
-## `approval_required`
-
-`approval_required` governs **human/business approval for this skill execution**, not provider authentication.
-
-External availability gates are separate:
-
-```yaml
-availability:
+routing:
   routing_eligible: false
   live_execution: blocked
-  external_gate: shopee_business_approval
 ```
 
-Approval must never bypass an external gate, a disabled provider, missing evidence or a mutation policy.
+Provider-specific manifests may contain internal adapter/provider binding metadata for audit and implementation resolution. That metadata is never caller-facing routing authority.
 
-## Router and fallback rules
+## Public naming vs implementation naming
 
-1. Only implementations supported by the skill's lifecycle, provider validation status and policy are eligible.
-2. Fallback is explicit and must preserve marketplace, permissions, privacy and output semantics.
-3. Never silently cross from one marketplace to another.
-4. Never silently escalate from read to write.
-5. Never use a more expensive or less private fallback without policy evaluation.
-6. If no eligible implementation exists, return a normalized blocked/error result such as `NO_VALIDATED_PROVIDER` or `PRE_APPROVAL_BLOCKED`.
+Public capability names describe semantics:
 
-## Evidence rules
+```text
+commerce.catalog.search
+commerce.catalog.read
+commerce.pricing.read
+commerce.inventory.read
+commerce.orders.read
+commerce.product.normalize
+commerce.product.evaluate
+```
 
-Evidence can include tests, evals, PRs, reports, E2E runs, security reviews and live read-only validations. The claim must match the evidence:
+Provider-specific implementation IDs are internal bindings, for example:
 
-- offline unit tests can support implementation correctness, not live-provider validation;
-- credentials configured outside Git are not evidence by themselves;
-- a single public snapshot can support a case study, not universal production readiness;
-- an open PR may support `PROTOTYPE`, but promotion should not outrun the repository branch that contains the implementation;
-- external marketplace approval is a hard gate when required.
+```text
+amazon-spapi.catalog.search
+amazon-spapi.pricing.read
+amazon-spapi.inventory.read
+amazon-spapi.orders.read
 
-## Commerce batch policy
+shopee-open-api.catalog.read
+shopee-open-api.orders.read
+shopee-open-api.product.normalize
+```
 
-For the first commerce batch:
+`commerce.product.evaluate` remains provider-neutral because it is deterministic domain logic rather than a marketplace adapter binding.
 
-- Amazon read skills remain `FEATURE` until a repository-backed adapter and reproducible read evidence exist.
-- Shopee skills remain `FEATURE` / `PRE-APPROVAL` until Shopee approval and the first governed read-only validation are recorded.
-- `commerce.product.evaluate` may be `PROTOTYPE` because deterministic implementation and tests exist, but it is advisory and not a publishing/purchasing authorization.
-- Current evaluation policy is injected by the governed domain configuration, not chosen by callers: minimum multiplier `5x`, minimum operating margin `60%`, minimum contribution `R$30`.
+Historical IDs such as `commerce.amazon.*` and `commerce.shopee.*` may be retained only as explicit deprecated aliases. They must not be advertised as public capabilities.
+
+## Approval
+
+Approval is a human/business authorization contract separate from provider eligibility and External Gates.
+
+Canonical states:
+
+```text
+NOT_REQUIRED
+PENDING
+APPROVED
+REJECTED
+EXPIRED
+```
+
+`denied` is not a canonical Approval state.
+
+An Approval transition never mutates an External Gate. In particular:
+
+```text
+approval=APPROVED + external_gate=BLOCKED => BLOCKED
+approval=APPROVED + external_gate=UNKNOWN => BLOCKED until the gate becomes CLEAR
+```
+
+## External Gates
+
+External Gates use the separate P0 contract and state machine:
+
+```text
+CLEAR
+BLOCKED
+UNKNOWN
+EXPIRED
+```
+
+A gate represents an external or deterministic precondition such as marketplace business approval, provider entitlement or legal availability.
+
+For the current Shopee pre-approval freeze:
+
+```yaml
+external_gate:
+  id: shopee_business_approval
+  status: UNKNOWN
+routing_eligible: false
+live_execution: blocked
+```
+
+The current evidence records Business Approval as pending/not yet granted, so `UNKNOWN` is used rather than inventing a rejection. A human Approval cannot clear this gate.
+
+## Fallback
+
+Default:
+
+```yaml
+fallback_policy: none
+```
+
+The only generic opt-in policy permitted by P0 is:
+
+```yaml
+fallback_policy: same_semantics_only
+```
+
+`same_semantics_only` must preserve domain, semantic action, permission class, read/write behavior, data classification, lifecycle eligibility, External Gate eligibility and output semantics.
+
+Never allowed:
+
+- Amazon -> Shopee fallback;
+- Shopee -> Amazon fallback;
+- read -> write fallback;
+- cross-domain fallback;
+- `FEATURE` -> production routing;
+- a fallback that changes capability semantics.
+
+If no eligible route exists, fail closed with a normalized `CapabilityResult v1` blocked/error result.
+
+## Evidence and Knowledge
+
+**Evidence != Knowledge.**
+
+Evidence proves an execution or promotion claim. Knowledge is a separately governed/promoted artifact. Test reports, CI runs, PRs and read-only live validations may support lifecycle claims but do not automatically become runtime Knowledge.
+
+GitHub is the source of truth for contracts, architecture and promotion evidence in this repository.
+
+Evidence claims must match what was actually proven:
+
+- offline tests can support implementation correctness, not live-provider validation;
+- configured credential names do not prove provider access;
+- a green offline CI does not prove a live marketplace contract;
+- an open Draft PR may support prototype evidence, but promotion must not outrun the branch/commit that contains the implementation;
+- external marketplace approval remains a hard gate where required.
+
+## Commerce P0 ceilings
+
+For this batch:
+
+- Amazon bindings remain `FEATURE`.
+- Shopee bindings remain `FEATURE` / `PRE_APPROVAL`.
+- `commerce.product.evaluate` remains `PROTOTYPE` / `F2`.
+- no lifecycle promotion is inferred from offline tests.
+- no marketplace mutation permission is introduced.
+
+Current Shopee evidence source:
+
+```text
+Scale-Characters/amazon-ops#2
+head bccfc0f5142f432f889158870c8f9e26e353fa65
+GitHub Actions CI run #3 / 32169677496
+Ruff: PASS
+Shopee offline: 28 passed
+General suite: 104 passed, 1 deselected
+Windows/Linux diagnostic: 1 expected failure, explicit and non-blocking
+mutations: OFF
+live Shopee: OFF
+credentials in CI: none
+```
+
+This evidence does **not** prove live-provider validation.
+
+## `commerce.product.evaluate`
+
+The evaluator remains deterministic, provider-neutral domain logic. Governed policy owns the current thresholds:
+
+```yaml
+minimum_multiplier: 5.0
+minimum_operating_margin_pct: 60
+minimum_contribution_brl: 30
+caller_may_override: false
+```
+
+Its domain decision `APPROVED` means only that the economic evaluation gates passed. It is not the P0 human Approval contract and grants no authority to:
+
+- publish;
+- purchase;
+- mutate pricing;
+- mutate inventory;
+- fulfill orders.
 
 ## Promotion gate
 
-A promotion PR must answer:
+A promotion PR must carry reproducible GitHub evidence for the claim being promoted. No field or lifecycle state may be promoted by inference.
 
-```yaml
-promotion_evidence:
-  contract_test: pass | fail | not_applicable
-  happy_path: pass | fail | not_applicable
-  invalid_input: pass | fail | not_applicable
-  error_normalization: pass | fail | not_applicable
-  timeout_retry: pass | fail | not_applicable
-  permissions: pass | fail | not_applicable
-  secret_scan: pass | fail | not_applicable
-  observability: pass | fail | not_applicable
-  e2e: pass | fail | not_applicable
-  live_provider_read: pass | fail | not_applicable
-  reviewer: required
-```
-
-No field may be promoted by inference. GitHub evidence is the source of truth.
+Minimum review dimensions include contract behavior, happy path, invalid input, error normalization, timeout/retry where applicable, permissions, secret handling, observability, E2E scope, live-provider scope and reviewer approval.
