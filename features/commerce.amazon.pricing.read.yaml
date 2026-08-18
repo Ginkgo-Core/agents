@@ -1,6 +1,11 @@
-# Feature Contract — commerce.amazon.pricing.read
-id: commerce.amazon.pricing.read
+# Provider Binding Contract — amazon-spapi.pricing.read
+id: amazon-spapi.pricing.read
+legacy_aliases:
+  - id: commerce.amazon.pricing.read
+    deprecated: true
+    replacement: amazon-spapi.pricing.read
 version: 0.1.0
+kind: provider_binding
 lifecycle_status: FEATURE
 maturity: F1
 level: L1
@@ -8,13 +13,27 @@ autonomy_level: A1
 status: feature
 
 purpose: >
-  Read Amazon pricing and offer observations through a normalized read-only
-  contract without leaking provider-specific pricing payloads to callers.
+  Implement the provider-agnostic commerce.pricing.read capability through an
+  Amazon SP-API binding without exposing provider-specific payloads or routing to callers.
 
-capability: commerce.pricing.read
+capability:
+  name: commerce.pricing.read
+  contract_version: v1
+
 caller_contract:
-  request_schema: ginkgo.skill-request.v1
-  result_schema: ginkgo.skill-result.v1
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: amazon-spapi.pricing.read
+  skill_version: 0.1.0
+  adapter_id: amazon-spapi
+  provider: amazon-selling-partner
+  internal_routing_metadata: true
 
 use_when:
   - current_amazon_offer_pricing_required
@@ -35,14 +54,18 @@ inputs:
     - customer_type
     - pagination.page_token
   forbidden:
+    - skill_id
+    - skill_version
     - provider
+    - adapter
     - endpoint
     - credential
+    - secret
     - access_token
     - refresh_token
 
 outputs:
-  contract: ginkgo.skill-result.v1
+  contract: CapabilityResult v1
   data_contract: amazon-pricing-result.v1
   fields:
     - identifier
@@ -62,26 +85,26 @@ permissions:
   filesystem_write: none
   shell: false
   secrets:
-    read_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
+    caller_access: forbidden
+    adapter_managed_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
 
-approval_required: false
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
 execution_mode: autonomous
-
-availability:
+routing:
   routing_eligible: false
   live_execution: blocked
   reason: amazon_sp_api_adapter_not_validated
 
-preferred_tools: [amazon-sp-api]
-preferred_providers: [amazon-selling-partner]
-fallbacks:
-  policy: explicit
-  order: []
-  no_silent_fallback: true
+fallback_policy: none
 
 validation:
   evidence:
-    - "Scale-Characters/amazon-ops main:.env.example contains SP-API credential references"
+    - "Scale-Characters/amazon-ops main:.env.example contains logical SP-API credential references"
     - "Scale-Characters/amazon-ops main has no merged pricing adapter or E2E evidence"
   blockers:
     - no_repository_backed_pricing_adapter
@@ -91,6 +114,7 @@ validation:
 
 promotion:
   allowed: false
+  lifecycle_ceiling: FEATURE
   requires:
     - merged_read_only_pricing_adapter
     - contract_and_boundary_tests
