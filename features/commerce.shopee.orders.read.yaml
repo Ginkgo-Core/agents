@@ -1,0 +1,117 @@
+# Feature Contract — commerce.shopee.orders.read
+id: commerce.shopee.orders.read
+version: 0.1.0
+lifecycle_status: FEATURE
+maturity: F1
+phase: PRE_APPROVAL
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Read authorized Shopee shop orders through a normalized, read-only contract
+  while preserving the pre-approval freeze and minimizing PII exposure.
+
+capability: commerce.orders.read
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - offline_contract_or_fixture_validation
+  - authorized_shop_order_read_after_external_gate
+  - reconciliation_or_audit_needs_shopee_orders
+
+avoid_when:
+  - any_order_mutation_or_fulfillment_action
+  - buyer_pii_is_not_required
+  - live_execution_before_shopee_business_approval
+  - live_execution_before_first_governed_read_validation
+
+inputs:
+  required:
+    - shop_ref
+    - query
+  optional:
+    - query.order_sn_list
+    - query.time_range_field
+    - query.time_from
+    - query.time_to
+    - query.include_shipping
+    - query.include_tracking
+  forbidden:
+    - provider
+    - endpoint
+    - credential
+    - partner_key
+    - access_token
+    - refresh_token
+    - mutation
+    - fulfill
+    - cancel
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: shopee-orders-result.v1
+  fields:
+    - orders
+    - order_sn
+    - status
+    - items
+    - shipment
+    - tracking
+    - pii_redaction
+    - provenance
+
+permissions:
+  external_network: true
+  marketplace_read: [shopee.orders, shopee.logistics.read]
+  marketplace_write: []
+  pii: redacted
+  restricted_fields: [buyer_identity, recipient_address]
+  filesystem_write: audit_only
+  shell: false
+  secrets:
+    read_refs: [SHOPEE_PARTNER_ID, SHOPEE_PARTNER_KEY, SHOPEE_SHOP_ID, SHOPEE_ACCESS_TOKEN, SHOPEE_REFRESH_TOKEN]
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  live_execution: blocked
+  external_gate: shopee_business_approval
+  implementation_state: offline_prototype_present_but_promotion_frozen
+
+preferred_tools: [shopee-open-api]
+preferred_providers: [shopee-open-platform]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops#2 draft PRE-APPROVAL FREEZE"
+    - "amazon-ops#2 integrations/shopee/orders.py implements read adapters plus order/tracking normalization"
+    - "amazon-ops#2 tests/test_shopee_domains.py validates order request construction and invalid ranges offline"
+    - "amazon-ops#2 tests/test_shopee_preapproval.py validates order normalization and read-only policy"
+  blockers:
+    - shopee_business_approval_pending
+    - no_read_only_live_order_e2e
+    - real_order_payload_contract_not_yet_compared_with_fixtures
+    - pii_redaction_not_yet_validated_against_live_payload
+
+promotion:
+  allowed: false
+  ceiling_until_external_approval: FEATURE
+  requires:
+    - shopee_business_approval
+    - approved_app_and_governed_secrets
+    - one_read_only_live_order_request
+    - real_payload_vs_fixture_contract_review
+    - pii_review
+    - sanitized_evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: commerce
