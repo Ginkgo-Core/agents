@@ -1,0 +1,108 @@
+# Feature Contract — commerce.amazon.catalog.search
+id: commerce.amazon.catalog.search
+version: 0.1.0
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Search the Amazon catalog through a governed read-only contract without exposing
+  SP-API endpoints, credentials or SDK-specific payloads to the caller.
+
+capability: commerce.catalog.search
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - amazon_catalog_discovery_required
+  - asin_or_identifier_resolution_required
+  - normalized_product_metadata_required
+
+avoid_when:
+  - seller_inventory_state_required
+  - offer_or_buybox_pricing_required
+  - order_data_required
+  - caller_requires_live_data_before_provider_validation
+
+inputs:
+  required:
+    - marketplace_ref
+    - criteria
+  optional:
+    - criteria.keywords
+    - criteria.identifiers
+    - criteria.brand
+    - criteria.category
+    - pagination.page_size
+    - pagination.page_token
+  forbidden:
+    - provider
+    - endpoint
+    - credential
+    - access_token
+    - refresh_token
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: amazon-catalog-result.v1
+  fields:
+    - items
+    - identifiers
+    - title
+    - brand
+    - category
+    - attributes
+    - images
+    - pagination
+    - provenance
+
+permissions:
+  external_network: true
+  marketplace_read: [amazon.catalog]
+  marketplace_write: []
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    read_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  live_execution: blocked
+  reason: amazon_sp_api_adapter_not_validated
+
+preferred_tools: [amazon-sp-api]
+preferred_providers: [amazon-selling-partner]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops main:.env.example declares logical SP-API credential names only"
+    - "Scale-Characters/amazon-ops main:PLANO.md keeps SP-API in a future integration phase"
+  blockers:
+    - no_repository_backed_amazon_sp_api_adapter
+    - no_contract_tests
+    - no_read_only_live_e2e
+    - no_normalized_error_evidence
+
+promotion:
+  allowed: false
+  requires:
+    - merged_read_only_adapter
+    - contract_and_invalid_input_tests
+    - normalized_errors_and_retry_policy
+    - secret_scan
+    - one_governed_read_only_live_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: commerce
