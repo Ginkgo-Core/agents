@@ -1,6 +1,11 @@
-# Feature Contract — commerce.shopee.orders.read
-id: commerce.shopee.orders.read
+# Provider Binding Contract — shopee-open-api.orders.read
+id: shopee-open-api.orders.read
+legacy_aliases:
+  - id: commerce.shopee.orders.read
+    deprecated: true
+    replacement: shopee-open-api.orders.read
 version: 0.1.0
+kind: provider_binding
 lifecycle_status: FEATURE
 maturity: F1
 phase: PRE_APPROVAL
@@ -9,13 +14,27 @@ autonomy_level: A1
 status: feature
 
 purpose: >
-  Read authorized Shopee shop orders through a normalized, read-only contract
-  while preserving the pre-approval freeze and minimizing PII exposure.
+  Implement the provider-agnostic commerce.orders.read capability through a
+  Shopee Open API binding while preserving the P0 pre-approval freeze and PII minimization.
 
-capability: commerce.orders.read
+capability:
+  name: commerce.orders.read
+  contract_version: v1
+
 caller_contract:
-  request_schema: ginkgo.skill-request.v1
-  result_schema: ginkgo.skill-result.v1
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: shopee-open-api.orders.read
+  skill_version: 0.1.0
+  adapter_id: shopee-open-api
+  provider: shopee-open-platform
+  internal_routing_metadata: true
 
 use_when:
   - offline_contract_or_fixture_validation
@@ -40,9 +59,13 @@ inputs:
     - query.include_shipping
     - query.include_tracking
   forbidden:
+    - skill_id
+    - skill_version
     - provider
+    - adapter
     - endpoint
     - credential
+    - secret
     - partner_key
     - access_token
     - refresh_token
@@ -51,7 +74,7 @@ inputs:
     - cancel
 
 outputs:
-  contract: ginkgo.skill-result.v1
+  contract: CapabilityResult v1
   data_contract: shopee-orders-result.v1
   fields:
     - orders
@@ -72,42 +95,58 @@ permissions:
   filesystem_write: audit_only
   shell: false
   secrets:
-    read_refs: [SHOPEE_PARTNER_ID, SHOPEE_PARTNER_KEY, SHOPEE_SHOP_ID, SHOPEE_ACCESS_TOKEN, SHOPEE_REFRESH_TOKEN]
+    caller_access: forbidden
+    adapter_managed_refs: [SHOPEE_PARTNER_ID, SHOPEE_PARTNER_KEY, SHOPEE_SHOP_ID, SHOPEE_ACCESS_TOKEN, SHOPEE_REFRESH_TOKEN]
 
-approval_required: false
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates:
+  - id: shopee_business_approval
+    gate_type: marketplace_business_approval
+    status: UNKNOWN
+    source_ref: Scale-Characters/amazon-ops#2@bccfc0f5142f432f889158870c8f9e26e353fa65
+
 execution_mode: autonomous
-
-availability:
+routing:
   routing_eligible: false
   live_execution: blocked
-  external_gate: shopee_business_approval
-  implementation_state: offline_prototype_present_but_promotion_frozen
+  reason: shopee_business_approval_not_clear_and_live_validation_missing
+  approval_cannot_override_external_gate: true
 
-preferred_tools: [shopee-open-api]
-preferred_providers: [shopee-open-platform]
-fallbacks:
-  policy: explicit
-  order: []
-  no_silent_fallback: true
+fallback_policy: none
 
 validation:
+  canonical_evidence:
+    source: Scale-Characters/amazon-ops#2
+    head: bccfc0f5142f432f889158870c8f9e26e353fa65
+    github_actions_run: 32169677496
+    ruff: PASS
+    shopee_offline: 28_passed
+    general_suite: 104_passed_1_deselected
+    windows_linux_diagnostic: 1_expected_failure_non_blocking
+    credentials_in_ci: none
+    mutations: OFF
+    live_shopee: OFF
+    live_provider_validation_proven: false
   evidence:
-    - "Scale-Characters/amazon-ops#2 draft PRE-APPROVAL FREEZE"
-    - "amazon-ops#2 integrations/shopee/orders.py implements read adapters plus order/tracking normalization"
-    - "amazon-ops#2 tests/test_shopee_domains.py validates order request construction and invalid ranges offline"
-    - "amazon-ops#2 tests/test_shopee_preapproval.py validates order normalization and read-only policy"
+    - "amazon-ops#2 implements Shopee order read adapters plus normalization"
+    - "amazon-ops#2 GitHub Actions validates 28 Shopee tests offline on the pinned head"
+    - "amazon-ops#2 explicitly keeps live Shopee disabled and mutations OFF"
   blockers:
-    - shopee_business_approval_pending
+    - shopee_business_approval_not_clear
     - no_read_only_live_order_e2e
-    - real_order_payload_contract_not_yet_compared_with_fixtures
+    - real_order_payload_contract_not_yet_compared_with_live_fixture
     - pii_redaction_not_yet_validated_against_live_payload
 
 promotion:
   allowed: false
-  ceiling_until_external_approval: FEATURE
+  lifecycle_ceiling: FEATURE
+  phase_ceiling: PRE_APPROVAL
   requires:
-    - shopee_business_approval
-    - approved_app_and_governed_secrets
+    - shopee_business_approval_gate_CLEAR
+    - governed_secret_configuration_outside_git
     - one_read_only_live_order_request
     - real_payload_vs_fixture_contract_review
     - pii_review
