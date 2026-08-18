@@ -1,0 +1,116 @@
+# Feature Contract — commerce.shopee.catalog.read
+id: commerce.shopee.catalog.read
+version: 0.1.0
+lifecycle_status: FEATURE
+maturity: F1
+phase: PRE_APPROVAL
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Read the authorized Shopee shop catalog through a normalized contract while
+  preserving the current pre-approval freeze and blocking live routing.
+
+capability: commerce.catalog.read
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - offline_contract_or_fixture_validation
+  - authorized_shop_catalog_read_after_external_gate
+  - normalized_shopee_product_data_required
+
+avoid_when:
+  - third_party_catalog_discovery_required
+  - any_write_or_publish_operation
+  - live_execution_before_shopee_business_approval
+  - live_execution_before_first_governed_read_validation
+
+inputs:
+  required:
+    - shop_ref
+    - query
+  optional:
+    - query.item_ids
+    - query.offset
+    - query.page_size
+    - query.include
+    - query.language
+  forbidden:
+    - provider
+    - endpoint
+    - credential
+    - partner_key
+    - access_token
+    - refresh_token
+    - mutation
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: shopee-catalog-result.v1
+  fields:
+    - products
+    - item_id
+    - title
+    - description
+    - category_id
+    - media
+    - price
+    - stock
+    - variants
+    - attributes
+    - status
+    - provenance
+
+permissions:
+  external_network: true
+  marketplace_read: [shopee.catalog]
+  marketplace_write: []
+  pii: none
+  filesystem_write: audit_only
+  shell: false
+  secrets:
+    read_refs: [SHOPEE_PARTNER_ID, SHOPEE_PARTNER_KEY, SHOPEE_SHOP_ID, SHOPEE_ACCESS_TOKEN, SHOPEE_REFRESH_TOKEN]
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  live_execution: blocked
+  external_gate: shopee_business_approval
+  implementation_state: offline_prototype_present_but_promotion_frozen
+
+preferred_tools: [shopee-open-api]
+preferred_providers: [shopee-open-platform]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops#2 draft PRE-APPROVAL FREEZE"
+    - "amazon-ops#2 integrations/shopee/catalog.py implements read adapters and normalize_product"
+    - "amazon-ops#2 tests/test_shopee_domains.py validates request construction and invalid batches offline"
+    - "amazon-ops#2 reports 22 Shopee-specific tests passing offline"
+  blockers:
+    - shopee_business_approval_pending
+    - no_approved_live_credentials_in_github_evidence
+    - no_read_only_live_e2e
+    - real_payload_contract_not_yet_compared_with_fixtures
+
+promotion:
+  allowed: false
+  ceiling_until_external_approval: FEATURE
+  requires:
+    - shopee_business_approval
+    - approved_app_and_governed_secrets
+    - one_read_only_live_request
+    - real_payload_vs_fixture_contract_review
+    - sanitized_evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: commerce
