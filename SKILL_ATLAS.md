@@ -1006,6 +1006,24 @@ flowchart TB
 
 ---
 
+## 20b. Provider Validation Status
+
+Skills e providers têm status independentes. Todo provider referenciado por uma skill carrega:
+
+| Status | Significado |
+|---|---|
+| `VALIDATED` | provider com E2E real bem-sucedido sob o contrato da skill; elegível em produção |
+| `EXPERIMENTAL` | adapter existe e opera sob o contrato, mas sem E2E de sucesso completo; elegível SOMENTE em modo eval/test explícito com policy própria |
+| `DISABLED` | inelegível em qualquer modo |
+
+**Princípio:** *uma skill pode estar validada enquanto um provider específico dela ainda está
+experimental.* Ex.: `media.image.generate` é skill válida com `comfyui-local` (VALIDATED)
+enquanto `google-gemini-image` permanece EXPERIMENTAL. Um provider EXPERIMENTAL **nunca**
+vira fallback automático — a ausência de opção VALIDATED produz `NO_VALIDATED_PROVIDER`,
+não uma troca silenciosa.
+
+---
+
 ## 21. Governance Rules
 
 1. **Feature é hipótese; skill é capacidade comprovada.**
