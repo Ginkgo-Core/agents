@@ -1,0 +1,102 @@
+# Feature Contract — commerce.amazon.pricing.read
+id: commerce.amazon.pricing.read
+version: 0.1.0
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Read Amazon pricing and offer observations through a normalized read-only
+  contract without leaking provider-specific pricing payloads to callers.
+
+capability: commerce.pricing.read
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - current_amazon_offer_pricing_required
+  - normalized_listing_and_landed_price_required
+  - product_evaluation_needs_target_marketplace_price
+
+avoid_when:
+  - historical_price_series_required
+  - seller_inventory_required
+  - caller_requires_live_data_before_provider_validation
+
+inputs:
+  required:
+    - marketplace_ref
+    - identifiers
+  optional:
+    - condition
+    - customer_type
+    - pagination.page_token
+  forbidden:
+    - provider
+    - endpoint
+    - credential
+    - access_token
+    - refresh_token
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: amazon-pricing-result.v1
+  fields:
+    - identifier
+    - currency
+    - listing_price
+    - shipping_price
+    - landed_price
+    - offers
+    - observed_at
+    - provenance
+
+permissions:
+  external_network: true
+  marketplace_read: [amazon.pricing]
+  marketplace_write: []
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    read_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  live_execution: blocked
+  reason: amazon_sp_api_adapter_not_validated
+
+preferred_tools: [amazon-sp-api]
+preferred_providers: [amazon-selling-partner]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops main:.env.example contains SP-API credential references"
+    - "Scale-Characters/amazon-ops main has no merged pricing adapter or E2E evidence"
+  blockers:
+    - no_repository_backed_pricing_adapter
+    - no_contract_tests
+    - no_live_read_e2e
+    - no_price_payload_normalization_evidence
+
+promotion:
+  allowed: false
+  requires:
+    - merged_read_only_pricing_adapter
+    - contract_and_boundary_tests
+    - normalized_errors_and_retry_policy
+    - one_governed_live_read_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: commerce
