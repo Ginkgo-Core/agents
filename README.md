@@ -30,23 +30,24 @@ FEATURE != SKILL
 
 Uma feature permanece incubada até ser validada com evidência reproduzível. Só então pode ser promovida para o catálogo operacional de skills.
 
-Fluxo canônico:
+Lifecycle caller-facing canônico:
 
 ```text
 FEATURE
-→ SPECIFIED
 → PROTOTYPE
 → VALIDATED
-→ SKILL
 → INTEGRATED
 → PRODUCTION
 ```
 
-## Manual canônico
+Os códigos históricos `F0/F1/F2/F3/S1/S2/S3` e os marcadores internos `SPECIFIED`/`SKILL` continuam suportados como metadata de compatibilidade no Atlas; não criam estados adicionais para callers.
+
+## Manuais canônicos
 
 Leia primeiro:
 
-- [`SKILL_ATLAS.md`](./SKILL_ATLAS.md) — níveis de skills e agentes, lifecycle, promotion gates, uso de n8n/ComfyUI, manifests, evals, loadouts e governance.
+- [`SKILL_ATLAS.md`](./SKILL_ATLAS.md) — níveis, maturidade detalhada, promotion gates, manifests, evals, loadouts e governance.
+- [`SKILL_RUNTIME_CONTRACT.md`](./SKILL_RUNTIME_CONTRACT.md) — contrato caller-agnostic, Capability Bus, Router, request/result normalizados, permissions, approvals e fallbacks.
 
 ## Princípio de naming
 
