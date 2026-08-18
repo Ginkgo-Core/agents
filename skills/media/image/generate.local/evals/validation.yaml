@@ -1,0 +1,41 @@
+# Evidência machine-readable — Validation Gate (SKILL_ATLAS §13/§14)
+skill: media.image.generate.local
+validated_at: 2026-08-18
+
+gates:
+  contract_test: pass          # contratos request/result + validação de entrada
+  happy_path: pass
+  invalid_input: pass
+  error_normalization: pass    # 9 códigos normalizados; zero traceback ao caller
+  timeout: pass                # watchdog 300s + TIMEOUT normalizado
+  retry_policy: pass           # máx 1 retry, somente retryable (502/503/504)
+  permissions: pass            # sem shell de request; scripts allowlisted fixos
+  secret_scan: pass            # em todas as waves antes de cada commit
+  resource_consumption: pass   # VRAM pico 7,58/8 GiB @1024; RAM gate 2 GiB medido
+  teardown: pass               # 0 containers ao fim de cada wave
+  idempotency: pass            # replay real: mesmo job_id, sem regeneração
+  observability: pass          # logs estruturados por job + sidecar .pyre.json
+  persistence_restart: pass    # job sobreviveu a restart do Pyre (Postgres)
+  e2e: pass                    # 3 E2E reais (router direto, n8n, n8n+lifecycle)
+  evidence_registration: pass
+
+evidence:
+  wave7:
+    scope: provider-neutral router E2E (seed 2026081707, 768x768, 83.4s cold)
+    pr: Ginkgo-Seeds/ginkgo-pyre#3
+    tests: 12/12
+  wave8:
+    scope: n8n agentic handoff E2E (seed 2026081801, cold 70.9s) + warm benchmark (6x)
+    pr: Ginkgo-Core/ai-stack#12
+    proof: workflow JSON livre de internals (8188//prompt/nodes/checkpoint)
+  wave9:
+    scope: persistence + idempotency + restart recovery + RAM-gated lifecycle
+    pr: Ginkgo-Seeds/ginkgo-pyre#4
+    tests: 26/26
+    live: job a7eb334f sobreviveu a restart; memory_pressure shutdown real (1.22 GiB)
+
+promotion:
+  approved: true
+  from: VALIDATED
+  to: SKILL/INTEGRATED
+  reviewer: founder (merges dos PRs #3/#12/#4)
