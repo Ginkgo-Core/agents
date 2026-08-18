@@ -1,0 +1,128 @@
+# Feature Contract — commerce.product.evaluate
+id: commerce.product.evaluate
+version: 0.1.0
+lifecycle_status: PROTOTYPE
+maturity: F2
+level: L2
+autonomy_level: A1
+status: prototype
+
+purpose: >
+  Evaluate a normalized commerce candidate against deterministic matching,
+  compliance and economic gates and return an advisory decision with evidence.
+  This contract never authorizes publication, purchase or marketplace mutation.
+
+capability: commerce.product.evaluate
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - normalized_candidate_requires_deterministic_evaluation
+  - amazon_target_price_and_delivered_source_cost_are_available
+  - caller_needs_approved_rejected_or_manual_review_with_reasons
+
+avoid_when:
+  - required_economic_inputs_are_missing_and_caller_requires_final_approval
+  - cross_marketplace_product_match_has_not_been_established
+  - caller_expects_purchase_or_listing_authorization
+  - caller_wants_to_override_governed_thresholds
+
+inputs:
+  required:
+    - candidate
+    - target_marketplace
+    - target_price
+    - delivered_source_cost
+    - matching_evidence
+  optional:
+    - commission_rate
+    - tax_rate
+    - return_reserve_rate
+    - stock_state
+    - brand_authorization
+    - operational_risk_flags
+  forbidden:
+    - provider
+    - tool
+    - minimum_multiplier
+    - minimum_operating_margin_pct
+    - minimum_contribution
+    - auto_publish
+    - auto_purchase
+
+policy_inputs:
+  economic_gate_policy: commerce-evaluation-gates-v1
+  current_gates:
+    minimum_multiplier: 5.0
+    minimum_operating_margin_pct: 60
+    minimum_contribution_brl: 30
+  caller_may_override: false
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: commerce-product-evaluation.v1
+  fields:
+    - decision
+    - reasons
+    - gates
+    - multiplier
+    - operating_margin_pct
+    - estimated_contribution_brl
+    - missing_inputs
+    - risk_flags
+    - provenance
+  decision_enum: [APPROVED, REJECTED, MANUAL_REVIEW]
+  semantics:
+    APPROVED: all_required_gates_passed_but_no_side_effect_is_authorized
+    REJECTED: at_least_one_hard_gate_failed
+    MANUAL_REVIEW: evidence_or_required_inputs_are_incomplete
+
+permissions:
+  external_network: false
+  marketplace_read: []
+  marketplace_write: []
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    read_refs: []
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  execution_scope: eval_test_only
+  production_eligible: false
+
+preferred_tools: [amazon-ops-product-evaluator]
+preferred_providers: [local]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops main:scripts/comparar.py contains deterministic match/risk/economics pipeline and forbids LLM-calculated numeric gates"
+    - "Scale-Characters/amazon-ops#1 records a real snapshot rejected by economics rather than forcing a positive result"
+    - "Scale-Characters/amazon-ops#2 candidate.py implements 5x/60%/R$30 evaluation and tests pass/fail/manual-review behavior offline"
+    - "Scale-Characters/amazon-ops#2 config/parametros.yaml declares minimum_multiplier=5.0, minimum_operating_margin_pct=60, minimum_contribution=30"
+  limitations:
+    - V1 economic implementation is not yet merged to amazon-ops main
+    - positive and boundary cases are fixture/offline evidence
+    - no caller-agnostic runtime adapter is integrated
+    - commission/tax/reserve source completeness remains domain-dependent
+
+promotion:
+  allowed: false
+  requires:
+    - merge_or_pin_canonical_evaluator_implementation
+    - contract_tests_for_exact_threshold_boundaries
+    - missing_input_and_error_normalization_tests
+    - evidence_that_policy_thresholds_cannot_be_overridden_by_caller
+    - at_least_one_reproducible_e2e_from_normalized_product_to_decision
+    - reviewer_approval
+
+owner_domain: commerce
