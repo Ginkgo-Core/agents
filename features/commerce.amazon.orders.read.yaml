@@ -1,6 +1,11 @@
-# Feature Contract — commerce.amazon.orders.read
-id: commerce.amazon.orders.read
+# Provider Binding Contract — amazon-spapi.orders.read
+id: amazon-spapi.orders.read
+legacy_aliases:
+  - id: commerce.amazon.orders.read
+    deprecated: true
+    replacement: amazon-spapi.orders.read
 version: 0.1.0
+kind: provider_binding
 lifecycle_status: FEATURE
 maturity: F1
 level: L1
@@ -8,13 +13,27 @@ autonomy_level: A1
 status: feature
 
 purpose: >
-  Read Amazon order state through a governed normalized contract with PII
-  minimized by default and zero mutation authority.
+  Implement the provider-agnostic commerce.orders.read capability through an
+  Amazon SP-API binding with PII minimization and zero mutation authority.
 
-capability: commerce.orders.read
+capability:
+  name: commerce.orders.read
+  contract_version: v1
+
 caller_contract:
-  request_schema: ginkgo.skill-request.v1
-  result_schema: ginkgo.skill-result.v1
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: amazon-spapi.orders.read
+  skill_version: 0.1.0
+  adapter_id: amazon-spapi
+  provider: amazon-selling-partner
+  internal_routing_metadata: true
 
 use_when:
   - amazon_order_status_required
@@ -37,9 +56,13 @@ inputs:
     - query.statuses
     - pagination.page_token
   forbidden:
+    - skill_id
+    - skill_version
     - provider
+    - adapter
     - endpoint
     - credential
+    - secret
     - access_token
     - refresh_token
     - acknowledge
@@ -47,7 +70,7 @@ inputs:
     - fulfill
 
 outputs:
-  contract: ginkgo.skill-result.v1
+  contract: CapabilityResult v1
   data_contract: amazon-orders-result.v1
   fields:
     - orders
@@ -70,26 +93,26 @@ permissions:
   filesystem_write: none
   shell: false
   secrets:
-    read_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
+    caller_access: forbidden
+    adapter_managed_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
 
-approval_required: false
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
 execution_mode: autonomous
-
-availability:
+routing:
   routing_eligible: false
   live_execution: blocked
   reason: amazon_sp_api_adapter_not_validated
 
-preferred_tools: [amazon-sp-api]
-preferred_providers: [amazon-selling-partner]
-fallbacks:
-  policy: explicit
-  order: []
-  no_silent_fallback: true
+fallback_policy: none
 
 validation:
   evidence:
-    - "Scale-Characters/amazon-ops main:.env.example declares SP-API credential references"
+    - "Scale-Characters/amazon-ops main:.env.example declares logical SP-API credential references"
   blockers:
     - no_repository_backed_orders_adapter
     - no_pii_redaction_contract_tests
@@ -98,6 +121,7 @@ validation:
 
 promotion:
   allowed: false
+  lifecycle_ceiling: FEATURE
   requires:
     - merged_read_only_orders_adapter
     - contract_tests_including_pii_redaction
