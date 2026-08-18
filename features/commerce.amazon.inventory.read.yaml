@@ -1,6 +1,11 @@
-# Feature Contract — commerce.amazon.inventory.read
-id: commerce.amazon.inventory.read
+# Provider Binding Contract — amazon-spapi.inventory.read
+id: amazon-spapi.inventory.read
+legacy_aliases:
+  - id: commerce.amazon.inventory.read
+    deprecated: true
+    replacement: amazon-spapi.inventory.read
 version: 0.1.0
+kind: provider_binding
 lifecycle_status: FEATURE
 maturity: F1
 level: L1
@@ -8,12 +13,27 @@ autonomy_level: A1
 status: feature
 
 purpose: >
-  Read seller inventory state from Amazon through a normalized, read-only contract.
+  Implement the provider-agnostic commerce.inventory.read capability through an
+  Amazon SP-API binding with read-only permissions and internal provider routing.
 
-capability: commerce.inventory.read
+capability:
+  name: commerce.inventory.read
+  contract_version: v1
+
 caller_contract:
-  request_schema: ginkgo.skill-request.v1
-  result_schema: ginkgo.skill-result.v1
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: amazon-spapi.inventory.read
+  skill_version: 0.1.0
+  adapter_id: amazon-spapi
+  provider: amazon-selling-partner
+  internal_routing_metadata: true
 
 use_when:
   - seller_stock_state_required
@@ -36,15 +56,19 @@ inputs:
     - pagination.page_size
     - pagination.page_token
   forbidden:
+    - skill_id
+    - skill_version
     - provider
+    - adapter
     - endpoint
     - credential
+    - secret
     - access_token
     - refresh_token
     - update_quantity
 
 outputs:
-  contract: ginkgo.skill-result.v1
+  contract: CapabilityResult v1
   data_contract: amazon-inventory-result.v1
   fields:
     - sku
@@ -64,26 +88,26 @@ permissions:
   filesystem_write: none
   shell: false
   secrets:
-    read_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
+    caller_access: forbidden
+    adapter_managed_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
 
-approval_required: false
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
 execution_mode: autonomous
-
-availability:
+routing:
   routing_eligible: false
   live_execution: blocked
   reason: amazon_sp_api_adapter_not_validated
 
-preferred_tools: [amazon-sp-api]
-preferred_providers: [amazon-selling-partner]
-fallbacks:
-  policy: explicit
-  order: []
-  no_silent_fallback: true
+fallback_policy: none
 
 validation:
   evidence:
-    - "Scale-Characters/amazon-ops main:.env.example declares SP-API credential names"
+    - "Scale-Characters/amazon-ops main:.env.example declares logical SP-API credential names"
   blockers:
     - no_repository_backed_inventory_adapter
     - no_contract_tests
@@ -92,6 +116,7 @@ validation:
 
 promotion:
   allowed: false
+  lifecycle_ceiling: FEATURE
   requires:
     - merged_read_only_inventory_adapter
     - contract_and_boundary_tests
