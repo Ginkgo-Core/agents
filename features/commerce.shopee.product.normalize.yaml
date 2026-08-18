@@ -1,0 +1,111 @@
+# Feature Contract — commerce.shopee.product.normalize
+id: commerce.shopee.product.normalize
+version: 0.1.0
+lifecycle_status: FEATURE
+maturity: F1
+phase: PRE_APPROVAL
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Convert a Shopee product payload into the canonical commerce product shape
+  without network mutation, economic evaluation or marketplace publication.
+
+capability: commerce.product.normalize
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - shopee_payload_requires_canonical_product_shape
+  - offline_fixture_validation
+  - post_read_normalization_after_external_gate
+
+avoid_when:
+  - source_payload_is_not_shopee
+  - product_matching_between_marketplaces_is_required
+  - economic_evaluation_is_required
+  - publication_or_inventory_mutation_is_required
+
+inputs:
+  required:
+    - shop_ref
+    - raw_product
+  optional:
+    - provenance.observed_at
+    - provenance.source_ref
+  forbidden:
+    - provider
+    - endpoint
+    - credential
+    - mutation
+    - evaluation_thresholds
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: commerce-product.v1
+  fields:
+    - source
+    - external_id
+    - shop_ref
+    - title
+    - description
+    - category_ref
+    - media
+    - price
+    - stock
+    - variants
+    - weight
+    - attributes
+    - status
+    - provenance
+
+permissions:
+  external_network: false
+  marketplace_read: []
+  marketplace_write: []
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    read_refs: []
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  live_execution: blocked
+  external_gate: shopee_business_approval
+  implementation_state: offline_normalizer_present_but_promotion_frozen
+
+preferred_tools: [amazon-ops-shopee-normalizer]
+preferred_providers: [local]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops#2 integrations/shopee/catalog.py normalize_product"
+    - "amazon-ops#2 tests/test_shopee_preapproval.py verifies optional-field tolerance"
+    - "amazon-ops#2 fixture-based validation only; no approved live payload yet"
+  blockers:
+    - shopee_business_approval_pending
+    - no_live_payload_fixture_comparison
+    - canonical_commerce_product_schema_not_yet_validated_cross_provider
+
+promotion:
+  allowed: false
+  ceiling_until_external_approval: FEATURE
+  requires:
+    - shopee_business_approval
+    - one_sanitized_live_product_payload
+    - live_payload_vs_normalized_contract_test
+    - canonical_schema_review
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: commerce
