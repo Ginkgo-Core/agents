@@ -1,0 +1,109 @@
+# Feature Contract — commerce.amazon.orders.read
+id: commerce.amazon.orders.read
+version: 0.1.0
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Read Amazon order state through a governed normalized contract with PII
+  minimized by default and zero mutation authority.
+
+capability: commerce.orders.read
+caller_contract:
+  request_schema: ginkgo.skill-request.v1
+  result_schema: ginkgo.skill-result.v1
+
+use_when:
+  - amazon_order_status_required
+  - order_items_or_timestamps_required
+  - reconciliation_or_audit_needs_orders
+
+avoid_when:
+  - fulfillment_mutation_required
+  - buyer_contact_or_address_is_not_necessary
+  - caller_requires_live_data_before_provider_validation
+
+inputs:
+  required:
+    - marketplace_ref
+    - query
+  optional:
+    - query.order_ids
+    - query.created_after
+    - query.updated_after
+    - query.statuses
+    - pagination.page_token
+  forbidden:
+    - provider
+    - endpoint
+    - credential
+    - access_token
+    - refresh_token
+    - acknowledge
+    - cancel
+    - fulfill
+
+outputs:
+  contract: ginkgo.skill-result.v1
+  data_contract: amazon-orders-result.v1
+  fields:
+    - orders
+    - order_id
+    - status
+    - timestamps
+    - items
+    - totals
+    - fulfillment_channel
+    - pii_redaction
+    - pagination
+    - provenance
+
+permissions:
+  external_network: true
+  marketplace_read: [amazon.orders]
+  marketplace_write: []
+  pii: redacted
+  restricted_fields: [buyer_identity, shipping_address]
+  filesystem_write: none
+  shell: false
+  secrets:
+    read_refs: [AMZ_SP_CLIENT_ID, AMZ_SP_CLIENT_SECRET, AMZ_SP_REFRESH_TOKEN, AMZ_SELLER_ID, AMZ_MARKETPLACE_ID]
+
+approval_required: false
+execution_mode: autonomous
+
+availability:
+  routing_eligible: false
+  live_execution: blocked
+  reason: amazon_sp_api_adapter_not_validated
+
+preferred_tools: [amazon-sp-api]
+preferred_providers: [amazon-selling-partner]
+fallbacks:
+  policy: explicit
+  order: []
+  no_silent_fallback: true
+
+validation:
+  evidence:
+    - "Scale-Characters/amazon-ops main:.env.example declares SP-API credential references"
+  blockers:
+    - no_repository_backed_orders_adapter
+    - no_pii_redaction_contract_tests
+    - no_live_read_e2e
+    - no_order_error_normalization_evidence
+
+promotion:
+  allowed: false
+  requires:
+    - merged_read_only_orders_adapter
+    - contract_tests_including_pii_redaction
+    - normalized_errors_and_retry_policy
+    - one_governed_live_read_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: commerce
