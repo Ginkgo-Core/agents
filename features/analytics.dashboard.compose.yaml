@@ -1,0 +1,99 @@
+# Domain Skill Contract — analytics.dashboard.compose
+id: analytics.dashboard.compose
+version: 0.1.0
+kind: analytical_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1_HIGH
+
+purpose: >
+  Compose a renderer-neutral dashboard specification from governed metrics, findings and
+  visualization requirements without mutating or publishing any external BI workspace.
+
+capability:
+  name: analytics.dashboard.compose
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: analytics.dashboard.compose
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+use_when:
+  - multiple_related_metrics_require_one_analytical_surface
+  - executive_or_operational_dashboard_structure_is_required
+  - reusable_layout_and_drilldown_plan_is_needed
+
+avoid_when:
+  - caller_only_needs_one_chart
+  - metric_definitions_are_unresolved
+  - caller_requests_direct_powerbi_publication
+
+inputs:
+  required: [objective, metrics, evidence_refs]
+  optional: [audience, dimensions, filters, refresh_expectation, visualization_preferences]
+  forbidden: [skill_id, skill_version, provider, adapter, tool, credential, secret, publish_dashboard, overwrite_report]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: analytics-dashboard-spec.v1
+  fields: [dashboard_title, audience, kpis, sections, visual_specs, filters, drilldowns, warnings, evidence_refs, provenance]
+
+composition_policy:
+  max_primary_kpis_without_justification: 7
+  evidence_required: true
+  renderer_neutral: true
+  external_write_authority: false
+  accessibility_required: true
+
+permissions:
+  external_network: false
+  data_read: supplied_authorized_result_only
+  data_write: false
+  report_write: false
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - dashboard_fixture_pack
+    - layout_semantics_tests
+    - metric_visual_traceability_tests
+    - accessibility_review
+    - no_write_guarantee
+    - reviewer_approval
+
+owner_domain: analytics
