@@ -49,6 +49,8 @@ flowchart LR
 
 The Domain Router resolves semantic implementation routing. The Executor Router assigns operational work. Neither absorbs the other's responsibility.
 
+For deterministic local skills, a distinct adapter and provider may be not applicable. Do not invent either identity merely to fill the generic path; the manifest must reflect the implementation boundary actually supported by evidence.
+
 ## Caller semantics
 
 A caller expresses **capability intent**, not implementation choice.
@@ -60,19 +62,29 @@ caller
   -> input / constraints / governance context
 ```
 
-The Domain Router resolves:
+The Domain Router resolves internal implementation context:
 
 ```text
 capability
-  -> skill_id
+  -> skill / binding
   -> skill_version
-  -> adapter
-  -> provider
+  -> adapter, when applicable
+  -> provider, when applicable
 ```
 
-The caller must never select `skill_id`, `skill_version`, adapter, raw endpoint, credential, secret or provider implementation. `constraints.allowed_providers`, when present in the canonical request, is an eligibility restriction/allowlist; it does not transfer final provider selection to the caller.
+The caller must never select or restrict `skill_id`, `skill_version`, binding, adapter, provider, tool, raw endpoint, credential or secret.
 
-Public capability names are provider-agnostic. Provider identity belongs to internal bindings/adapters.
+Provider eligibility is exclusively internal routing/policy context:
+
+```text
+Identity / Policy
+  -> Domain Router
+  -> eligible bindings / adapters / providers
+```
+
+Eligibility may be derived from capability semantics, tenant/workspace identity, data classification, cost/deadline, External Gates, lifecycle and other governed policy context. It is never caller routing authority.
+
+Public capability names are provider-agnostic. Provider identity belongs only to an internal implementation record when a real provider exists.
 
 ## CapabilityRequest v1
 
@@ -102,7 +114,6 @@ constraints:
   deadline: optional
   max_cost: optional
   data_classification: optional
-  allowed_providers: optional
   fallback_policy: none | same_semantics_only
 
 governance:
@@ -115,7 +126,9 @@ evidence:
 idempotency_key: required
 ```
 
-Caller-facing examples in this repository must use `capability.name` and `capability.contract_version`; they must not use caller-selected `skill_id`.
+Provider eligibility, implementation allowlists and routing candidates are intentionally absent from the caller-controlled request contract. They belong to Identity / Policy and Domain Router context.
+
+Caller-facing examples in this repository must use `capability.name` and `capability.contract_version`; they must not use caller-selected implementation identifiers or hints.
 
 ## CapabilityResult v1
 
@@ -139,8 +152,8 @@ output: normalized capability output
 
 routing:
   domain: internal audit/control metadata
-  adapter_id: internal audit/control metadata
-  provider: internal audit/control metadata
+  adapter_id: internal audit/control metadata when applicable
+  provider: internal audit/control metadata when applicable
   fallback_used: boolean
   routing_reason: string
 
@@ -151,7 +164,7 @@ external_gates: []
 error: null | normalized error
 ```
 
-`routing.adapter_id` and `routing.provider` exist for internal audit/control. They are not caller choices and must not be exposed in an unprivileged caller projection.
+`routing.adapter_id` and `routing.provider`, when applicable, exist for internal audit/control. They are not caller choices and must not be exposed in an unprivileged caller projection.
 
 ## Legacy compatibility aliases
 
@@ -169,7 +182,7 @@ legacy request -> CapabilityRequest v1 -> Capability Bus
 CapabilityResult v1 -> legacy result projection
 ```
 
-A legacy adapter must not preserve caller-selected `skill_id` as routing authority. If an old request contains `skill_id`, it may be logged for migration diagnostics but routing is determined from the provider-agnostic capability contract.
+A legacy adapter must not preserve caller-selected `skill_id` as routing authority. If an old request contains implementation-specific routing fields, they may be logged for migration diagnostics but routing is determined from the provider-agnostic capability contract plus internal policy.
 
 ## Canonical lifecycle
 
@@ -224,10 +237,9 @@ external_gates: []
 
 routing:
   routing_eligible: false
-  live_execution: blocked
 ```
 
-Provider-specific manifests may contain internal adapter/provider binding metadata for audit and implementation resolution. That metadata is never caller-facing routing authority.
+Provider-specific manifests may contain internal binding, adapter, provider and tool metadata for audit and implementation resolution. That metadata is never caller-facing routing authority. Local deterministic implementations must use null/not-applicable semantics for absent adapter/provider roles rather than inventing identities.
 
 ## Public naming vs implementation naming
 
@@ -243,7 +255,7 @@ commerce.product.normalize
 commerce.product.evaluate
 ```
 
-Provider-specific implementation IDs are internal bindings, for example:
+Implementation IDs are internal bindings/skills and must describe the actual implementation boundary, for example:
 
 ```text
 amazon-spapi.catalog.search
@@ -253,12 +265,14 @@ amazon-spapi.orders.read
 
 shopee-open-api.catalog.read
 shopee-open-api.orders.read
-shopee-open-api.product.normalize
+shopee.product.normalize
 ```
+
+`shopee.product.normalize` is intentionally not namespaced as `shopee-open-api.*`: the current evidenced implementation is a deterministic local Python normalizer for Shopee-format payloads and does not invoke the Shopee Open Platform. Its concrete tool surface is `amazon-ops-shopee-normalizer`; adapter and provider are not applicable unless a future, evidence-backed boundary introduces them.
 
 `commerce.product.evaluate` remains provider-neutral because it is deterministic domain logic rather than a marketplace adapter binding.
 
-Historical IDs such as `commerce.amazon.*` and `commerce.shopee.*` may be retained only as explicit deprecated aliases. They must not be advertised as public capabilities.
+Historical IDs such as `commerce.amazon.*` and `commerce.shopee.*` may be retained only as explicit deprecated aliases. Misleading implementation IDs may also be retained only as explicit deprecated aliases with a documented replacement.
 
 ## Approval
 
@@ -296,7 +310,7 @@ EXPIRED
 
 A gate represents an external or deterministic precondition such as marketplace business approval, provider entitlement or legal availability.
 
-For the current Shopee pre-approval freeze:
+For Shopee **network access / live payload acquisition** during the current pre-approval freeze:
 
 ```yaml
 external_gate:
@@ -307,6 +321,8 @@ live_execution: blocked
 ```
 
 The current evidence records Business Approval as pending/not yet granted, so `UNKNOWN` is used rather than inventing a rejection. A human Approval cannot clear this gate.
+
+This network-access gate does **not** automatically gate deterministic offline processing of an already supplied/authorized payload. In particular, `commerce.product.normalize` may normalize a fixture locally without Shopee network access; the gate remains relevant to obtaining the governed live payload needed for future contract validation and promotion evidence.
 
 ## Fallback
 
@@ -356,7 +372,8 @@ Evidence claims must match what was actually proven:
 For this batch:
 
 - Amazon bindings remain `FEATURE`.
-- Shopee bindings remain `FEATURE` / `PRE_APPROVAL`.
+- Shopee read bindings remain `FEATURE` / `PRE_APPROVAL`.
+- `shopee.product.normalize` remains `FEATURE` / `PRE_APPROVAL`; its local fixture execution is not network-gated, but governed live-payload evidence is still missing.
 - `commerce.product.evaluate` remains `PROTOTYPE` / `F2`.
 - no lifecycle promotion is inferred from offline tests.
 - no marketplace mutation permission is introduced.
