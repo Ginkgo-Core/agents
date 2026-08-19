@@ -1,0 +1,107 @@
+# Domain Skill Contract — analytics.insight.analyze
+id: analytics.insight.analyze
+version: 0.1.0
+kind: analytical_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1_HIGH
+
+purpose: >
+  Transform governed metric observations into explicit analytical findings while separating
+  observed facts, comparisons, trends, anomalies, correlations and inferences.
+
+capability:
+  name: analytics.insight.analyze
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: analytics.insight.analyze
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+use_when:
+  - normalized_metrics_and_evidence_are_available
+  - caller_needs_explanation_comparison_ranking_or_driver_analysis
+  - findings_must_be_labeled_by_evidence_strength
+
+avoid_when:
+  - source_evidence_is_missing
+  - required_metric_definition_is_ambiguous
+  - caller_expects_causal_claims_from_correlation_only
+  - caller_requests_prediction_without_forecasting_contract
+
+inputs:
+  required: [question, metrics, evidence_refs]
+  optional: [dimensions, period, comparison_baseline, thresholds]
+  forbidden: [skill_id, skill_version, provider, adapter, tool, credential, secret, fabricate_missing_data, unlabeled_causal_claim]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: analytics-insight-analysis.v1
+  fields: [findings, finding_kind, confidence, supporting_metrics, evidence_refs, warnings, provenance]
+
+finding_kinds: [observation, comparison, trend, anomaly, driver, correlation, inference, warning]
+
+reasoning_policy:
+  inference_must_be_labeled: true
+  causality_requires_specific_evidence: true
+  missing_data_must_surface_warning: true
+  stale_data_must_surface_warning: true
+  unsupported_claims_forbidden: true
+
+permissions:
+  external_network: false
+  data_read: supplied_authorized_result_only
+  data_write: false
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+validation:
+  limitations:
+    - no_standardized_analytical_eval_pack
+    - no_calibrated_confidence_evals
+    - no_integrated_runtime
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - expected_finding_fixture_pack
+    - observation_vs_inference_tests
+    - correlation_vs_causality_tests
+    - missing_and_stale_data_tests
+    - provenance_tests
+    - reviewer_approval
+
+owner_domain: analytics
