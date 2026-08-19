@@ -1,0 +1,99 @@
+# Domain Skill Contract — analytics.report.generate
+id: analytics.report.generate
+version: 0.1.0
+kind: analytical_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1_HIGH
+
+purpose: >
+  Generate a durable renderer-neutral analytical report specification from governed metrics,
+  findings, visualizations, evidence and caveats. Delivery/publication is not authorized.
+
+capability:
+  name: analytics.report.generate
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: analytics.report.generate
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+use_when:
+  - analytical_result_requires_durable_narrative
+  - executive_product_business_or_technical_audience_needs_evidence_backed_readout
+  - charts_and_findings_require_caveats_and_source_traceability
+
+avoid_when:
+  - required_metrics_are_unvalidated
+  - evidence_is_missing_for_material_claims
+  - caller_requests_direct_external_delivery_without_separate_send_publish_capability
+
+inputs:
+  required: [objective, findings, metrics, evidence_refs]
+  optional: [audience, visualizations, period, recommendations, appendix_requirements]
+  forbidden: [skill_id, skill_version, provider, adapter, tool, credential, secret, send_email, publish_dashboard, upload_external]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: analytics-report-spec.v1
+  fields: [title, executive_summary, findings, metrics, visualizations, recommendations, caveats, evidence_refs, provenance]
+
+report_policy:
+  evidence_required_for_material_claims: true
+  inference_must_be_labeled: true
+  caveats_required_when_data_incomplete: true
+  renderer_neutral: true
+  delivery_authority: false
+
+permissions:
+  external_network: false
+  data_read: supplied_authorized_result_only
+  external_publish: false
+  send_messages: false
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - report_fixture_pack
+    - evidence_traceability_tests
+    - caveat_and_inference_tests
+    - renderer_independence_tests
+    - no_delivery_side_effect_tests
+    - reviewer_approval
+
+owner_domain: analytics
