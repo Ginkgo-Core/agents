@@ -31,7 +31,7 @@ TaskOps
 
 `Domain Router != Executor Router`.
 
-Callers expressam `capability.name` e `capability.contract_version`. Eles não escolhem `skill_id`, `skill_version`, adapter, provider, endpoint, credential ou secret. O Domain Router resolve a implementação elegível.
+Callers expressam `capability.name` e `capability.contract_version`. Eles não escolhem nem restringem skill, binding, tool, adapter, provider, endpoint, credential ou secret. Provider eligibility é contexto interno de `Identity / Policy -> Domain Router`.
 
 ## Contratos canônicos
 
@@ -70,7 +70,22 @@ flowchart TB
 - **Ginkgo Agents:** Skill Atlas, manifests, evals, implementation bindings, loadouts e promotion evidence.
 - **TaskOps / Executor Router:** seleção de executor operacional.
 - **n8n / Hermes / OpenClaw / Sylvia / Human:** executores/callers; não são autoridade para seleção de provider.
-- **Adapters/providers:** implementação interna atrás do Domain Router.
+- **Adapters/providers:** implementação interna atrás do Domain Router quando esses papéis realmente existem.
+- **Tools:** superfícies concretas de execução; não são automaticamente adapters ou providers.
+
+Taxonomia transversal:
+
+```text
+CAPABILITY
+!= SKILL
+!= BINDING
+!= TOOL
+!= ADAPTER
+!= PROVIDER
+!= EXECUTOR
+```
+
+Para lógica determinística local, adapter e provider podem ser não aplicáveis. Não se inventa provider para representar apenas localização de execução.
 
 ## Regra central
 
@@ -106,7 +121,7 @@ commerce.product.normalize
 commerce.product.evaluate
 ```
 
-Provider-specific IDs representam **bindings/skills internos**, não capabilities públicas:
+IDs internos representam bindings/skills reais, não capabilities públicas:
 
 ```text
 amazon-spapi.catalog.search
@@ -116,12 +131,14 @@ amazon-spapi.orders.read
 
 shopee-open-api.catalog.read
 shopee-open-api.orders.read
-shopee-open-api.product.normalize
+shopee.product.normalize
 ```
+
+`shopee.product.normalize` substitui o antigo `shopee-open-api.product.normalize` porque a implementação comprovada é uma transformação Python local de payload Shopee, sem chamada à Shopee Open Platform. O tool concreto é `amazon-ops-shopee-normalizer`; adapter e provider são não aplicáveis na implementação atual.
 
 `commerce.product.evaluate` permanece provider-neutral por ser lógica determinística de domínio.
 
-Os antigos IDs `commerce.amazon.*` e `commerce.shopee.*` são preservados somente como aliases deprecated nos manifests atuais para evitar quebra silenciosa do Atlas.
+Os antigos IDs `commerce.amazon.*` e `commerce.shopee.*` são preservados somente como aliases deprecated nos manifests atuais para evitar quebra silenciosa do Atlas. `shopee-open-api.product.normalize` também permanece somente como alias deprecated para `shopee.product.normalize`.
 
 ## Governance P0
 
@@ -131,16 +148,35 @@ Os antigos IDs `commerce.amazon.*` e `commerce.shopee.*` são preservados soment
 - fallback default: `none`.
 - único fallback genérico permitido: `same_semantics_only`.
 - sem fallback silencioso Amazon <-> Shopee, read -> write, cross-domain ou `FEATURE` -> production.
+- provider eligibility é derivada internamente por Identity / Policy e Domain Router.
 - Evidence != Knowledge.
 - GitHub é source of truth para contratos, manifests e promotion evidence.
+
+### External Gate Shopee
+
+`shopee_business_approval` bloqueia aquisição de payload Shopee live enquanto não estiver `CLEAR`. Ele não bloqueia a transformação determinística local de um payload já fornecido/autorizado.
+
+Assim:
+
+```text
+obter payload Shopee live
+-> shopee_business_approval required
+
+normalizar payload já disponível
+-> local deterministic transform
+-> no external network gate
+```
+
+Isso não promove o normalizador: ainda falta evidência governada contra payload real para validar o contrato canônico.
 
 ## Commerce ceilings atuais
 
 - Amazon bindings: `FEATURE`.
-- Shopee bindings: `FEATURE / PRE_APPROVAL`.
+- Shopee read bindings: `FEATURE / PRE_APPROVAL`.
+- `shopee.product.normalize`: `FEATURE / PRE_APPROVAL`, fixture/local only, sem promoção.
 - `commerce.product.evaluate`: `PROTOTYPE / F2`.
 
-A evidência Shopee atual é `Scale-Characters/amazon-ops#2`, head `bccfc0f5142f432f889158870c8f9e26e353fa65`: Ruff PASS, 28 testes Shopee offline, 104 testes gerais passados + 1 deselected, diagnóstico Windows/Linux conhecido e non-blocking, mutations OFF e live Shopee OFF. Offline CI não prova live-provider validation.
+A evidência Shopee atual é `Scale-Characters/amazon-ops#2`, head `bccfc0f5142f432f889158870c8f9e26e353fa65`: Ruff PASS, 28 testes Shopee offline, 104 testes gerais passados + 1 deselected, diagnóstico Windows/Linux conhecido e non-blocking, mutations OFF e live Shopee OFF. Offline CI não prova live-provider validation nem validação do contrato de normalização contra payload live governado.
 
 ## Manuais canônicos
 
