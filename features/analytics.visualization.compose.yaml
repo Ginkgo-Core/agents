@@ -1,0 +1,122 @@
+# Provider Binding Contract — powerbi.visualization.compose.deneb
+id: powerbi.visualization.compose.deneb
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+priority: P1_HIGH
+
+purpose: >
+  Implement analytics.visualization.compose by generating renderer-aware Power BI visual
+  specifications through Deneb/Vega-Lite while keeping public analytical intent provider-agnostic.
+
+capability:
+  name: analytics.visualization.compose
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: powerbi.visualization.compose.deneb
+  skill_version: 0.1.0
+  adapter_id: powerbi
+  provider: microsoft-power-bi
+  tools: [deneb, vega-lite]
+  internal_routing_metadata: true
+
+use_when:
+  - authorized_analytical_data_is_ready_for_visualization
+  - custom_interactive_powerbi_visual_is_required
+  - chart_semantics_can_be_represented_in_vega_lite
+
+avoid_when:
+  - visual_is_not_supported_by_available_renderer
+  - source_metrics_or_units_are_ambiguous
+  - visual_would_expose_sensitive_fields
+  - caller_expects_external_report_mutation
+
+inputs:
+  required: [analytical_data, semantic_visual_intent, evidence_refs]
+  optional: [title, description, interaction, accessibility_requirements]
+  forbidden: [skill_id, skill_version, provider, adapter, tool, credential, secret, publish_report, overwrite_visual, bypass_data_policy]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: analytics-visualization-spec.v1
+  fields: [chart_type, title, semantic_spec, renderer_spec, required_fields, warnings, evidence_refs, provenance]
+
+chart_policy:
+  single_kpi: card
+  ordered_time_trend: line_or_sparkline
+  ranking: bar
+  actual_vs_target: bullet
+  threshold_progress: gauge
+  numeric_relationship: scatter
+  distribution: histogram
+  anomaly: time_series_with_markers
+  part_to_whole: pie_or_donut_only_when_total_is_meaningful
+
+quality_rules:
+  validate_units: true
+  validate_aggregation: true
+  validate_time_granularity: true
+  avoid_unjustified_dual_axis: true
+  protect_sensitive_tooltips: true
+  preserve_accessibility: true
+  styling_cannot_override_correctness: true
+
+permissions:
+  external_network: false
+  report_read: authorized_only
+  report_write: false
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "Research input reviewed 2026-08-19 demonstrates Deneb/Vega-Lite generation for line and bullet visual patterns in Power BI."
+  limitations:
+    - no_ginkgo_renderer_contract_tests
+    - no_visual_regression_suite
+    - no_live_powerbi_write_authority
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - semantic_chart_fixture_pack
+    - vega_lite_schema_validation
+    - visual_regression_or_snapshot_tests
+    - unit_and_aggregation_tests
+    - sensitive_tooltip_tests
+    - no_write_guarantee
+    - reviewer_approval
+
+owner_domain: analytics

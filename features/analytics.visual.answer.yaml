@@ -1,0 +1,117 @@
+# Composite Domain Skill Contract — analytics.visual.answer
+id: analytics.visual.answer
+version: 0.1.0
+kind: composite_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1_HIGH
+
+purpose: >
+  Answer an analytical business question with grounded summary, metrics, findings,
+  visualizations, warnings and provenance while delegating implementation resolution
+  to the Analytics Domain Router.
+
+capability:
+  name: analytics.visual.answer
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: analytics.visual.answer
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+composes_capabilities:
+  - analytics.semantic.inspect
+  - analytics.metric.calculate
+  - analytics.insight.analyze
+  - analytics.visualization.compose
+
+use_when:
+  - caller_asks_quantitative_business_question
+  - grounded_metrics_and_visual_explanation_are_useful
+  - answer_requires_provenance_and_warnings
+
+avoid_when:
+  - request_is_purely_transactional_or_mutative
+  - caller_lacks_authorized_data_scope
+  - required_business_metric_definition_cannot_be_resolved
+  - caller_expects_provider_selection
+
+inputs:
+  required: [question]
+  optional: [dataset_refs, semantic_model_ref, period, dimensions, visualization_preferences]
+  forbidden: [skill_id, skill_version, provider, adapter, tool, model, endpoint, credential, secret, force_live_write]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: analytics-visual-answer.v1
+  data_contract_ref: Ginkgo-Core/ai-stack/contracts/domains/analytics/analytics-visual-answer.schema.json
+  fields: [summary, findings, metrics, visualizations, warnings, provenance]
+
+answer_policy:
+  evidence_required_for_material_claims: true
+  chart_is_not_evidence: true
+  inference_must_be_labeled: true
+  stale_or_missing_data_must_warn: true
+  renderer_neutral_public_contract: true
+  external_write_authority: false
+
+permissions:
+  external_network: false
+  data_read: delegated_to_resolved_child_capabilities
+  data_write: false
+  report_write: false
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  production_eligible: false
+  reason: composite_feature_not_integrated
+
+fallback_policy: none
+
+validation:
+  limitations:
+    - child_capabilities_are_feature_only
+    - no_capability_bus_integration
+    - no_expected_answer_eval_pack
+    - no_end_to_end_visual_evidence_bundle
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - child_capability_fixture_tests
+    - normalized_result_schema_tests
+    - evidence_completeness_tests
+    - ambiguous_question_tests
+    - sensitive_data_policy_tests
+    - one_reproducible_end_to_end_offline_answer
+    - reviewer_approval
+
+owner_domain: analytics

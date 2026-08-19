@@ -1,0 +1,104 @@
+# Provider Binding Contract — powerbi.semantic.inspect
+id: powerbi.semantic.inspect
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+priority: P1_HIGH
+
+purpose: >
+  Implement the provider-agnostic analytics.semantic.inspect capability for Power BI
+  semantic projects/models without exposing Power BI routing or credentials to callers.
+
+capability:
+  name: analytics.semantic.inspect
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: powerbi.semantic.inspect
+  skill_version: 0.1.0
+  adapter_id: powerbi
+  provider: microsoft-power-bi
+  internal_routing_metadata: true
+  implementation_inputs: [PBIP, TMDL, semantic_model_metadata, powerbi_mcp_bridge]
+
+use_when:
+  - authorized_powerbi_semantic_model_requires_inspection
+  - tables_relationships_measures_or_dimensions_must_be_understood_before_analysis
+  - downstream_metric_or_visual_generation_requires_semantic_context
+
+avoid_when:
+  - caller_has_no_authorized_model_or_dataset_scope
+  - mutation_is_required
+  - raw_data_dump_is_requested_when_metadata_is_sufficient
+  - production_live_access_is_expected_before_validation
+
+inputs:
+  required: [semantic_model_ref]
+  optional: [requested_entities, metadata_depth]
+  forbidden: [skill_id, skill_version, provider, adapter, tool, endpoint, credential, secret, access_token, workspace_admin_override]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: analytics-semantic-inspection.v1
+  fields: [model_ref, tables, relationships, columns, measures, dimensions, hierarchies, warnings, provenance]
+
+permissions:
+  external_network: false
+  model_read: authorized_only
+  model_write: false
+  filesystem_write: none
+  shell: false
+  local_tool_access: controlled
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "Research input reviewed 2026-08-19 demonstrates PBIP/TMDL semantic metadata inspection as a practical Power BI workflow pattern."
+  limitations:
+    - no_ginkgo_powerbi_adapter_implementation
+    - no_contract_tests
+    - no_governed_live_semantic_model_evidence
+    - no_least_privilege_mcp_validation
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - representative_pbip_tmdl_fixture
+    - semantic_parse_tests
+    - authorization_scope_tests
+    - malformed_model_tests
+    - provenance_tests
+    - least_privilege_adapter_design
+    - reviewer_approval
+
+owner_domain: analytics
