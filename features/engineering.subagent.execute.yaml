@@ -1,0 +1,123 @@
+# Internal Agent Workflow Candidate — engineering.subagent.execute
+id: engineering.subagent.execute
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L3
+autonomy_level: A2
+status: feature
+priority: P1
+
+purpose: >
+  Execute an approved engineering plan through isolated subagents with explicit
+  task boundaries, dependency-aware parallelism, two-stage review, evidence
+  handoff and bounded retry loops.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - approved_plan_contains_multiple_independent_or_partially_independent_tasks
+  - implementation_can_be_partitioned_into_isolated_reviewable_units
+  - fresh_context_review_improves_verification
+
+preconditions:
+  - plan_or_ticket_set_is_pinned
+  - repository_boundary_is_known
+  - mutation_scope_is_explicit
+  - destructive_security_sensitive_and_production_actions_are_external_gates
+  - baseline_verification_state_is_known
+
+roles:
+  planner:
+    responsibilities: [decompose, identify_dependencies, define_completion_criteria]
+  executor:
+    responsibilities: [implement_assigned_scope, run_local_evidence_loop, report_diff_and_evidence]
+  spec_reviewer:
+    responsibilities: [compare_work_product_to_pinned_spec, report_missing_or_extra_behavior]
+  quality_reviewer:
+    responsibilities: [review_correctness_safety_maintainability_tests_and_context]
+  controller:
+    responsibilities: [schedule, reconcile_results, adjudicate_non_destructive_disagreement, enforce_retry_budget]
+
+parallelism:
+  allowed_when:
+    - tasks_do_not_write_same_state_without_coordination
+    - dependency_edges_are_satisfied
+    - review_evidence_can_be_reconciled
+  forbidden_when:
+    - shared_irreversible_state_is_mutated
+    - tasks_require_ordered_schema_or_policy_transition
+    - concurrent_writes_would_invalidate_evidence
+
+review_order:
+  - spec_compliance
+  - quality
+
+retry_policy:
+  default_max_fix_rounds: 5
+  retry_requires:
+    - retryable_failure_class
+    - material_change_in_next_attempt
+  same_attempt_without_new_information: forbidden
+  circuit_breaker_action: controller_handoff_with_residual_findings
+
+multi_agent_disagreement:
+  hidden_consensus: forbidden
+  record_findings: required
+  non_destructive_bounded_conflict: controller_may_rule_and_continue
+  destructive_security_sensitive_or_production_conflict: human_or_policy_gate_required
+
+side_effect_authority:
+  repository_write: candidate_with_explicit_task_scope
+  force_push: false
+  merge: false
+  deploy: false
+  release: false
+  secret_rotation: false
+  production_write: false
+  lifecycle_promotion: false
+
+outputs:
+  type: execution_ledger
+  required_sections:
+    - pinned_plan
+    - task_graph
+    - assignments
+    - per_task_evidence
+    - spec_review_findings
+    - quality_review_findings
+    - retries_and_rulings
+    - residual_risk
+    - final_verification_state
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+  limitations:
+    - no harness adapter
+    - no isolated workspace implementation
+    - no parallel execution benchmark
+    - no disagreement or circuit-breaker evals
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - independent_task_parallelism_fixture
+    - conflicting_write_fixture
+    - spec_review_miss_fixture
+    - quality_review_miss_fixture
+    - bounded_retry_fixture
+    - disagreement_fixture
+    - destructive_gate_fixture
+    - context_cost_benchmark
+    - reviewer_approval
+
+owner_domain: engineering
