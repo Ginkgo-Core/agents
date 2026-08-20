@@ -1,0 +1,137 @@
+# Tool Binding Contract — playwright.browser.session.execute
+id: playwright.browser.session.execute
+version: 0.1.0
+kind: tool_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Execute a bounded browser session for the provider-agnostic
+  browser.session.execute capability through Playwright. Browser operation is
+  governed as an execution tool: callers express intent and allowed operation
+  class, never raw Playwright APIs, executable scripts or credential material.
+
+capability:
+  name: browser.session.execute
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  domain_input_schema_ref: Ginkgo-Core/ai-stack/contracts/agentic-foundation/browser-session-execute.v1.schema.json
+  caller_selects: [capability.name, capability.contract_version, input]
+  executor_router_resolves: [executor]
+  domain_router_resolves: [skill_id, skill_version, tool_binding]
+
+implementation_binding:
+  skill_id: playwright.browser.session.execute
+  skill_version: 0.1.0
+  tool_id: playwright
+  provider: not_applicable
+  source_repo: microsoft/playwright
+  internal_routing_metadata: true
+
+use_when:
+  - web_ui_interaction_required
+  - browser_rendering_required
+  - authenticated_session_required_under_policy
+  - deterministic_browser_trace_required
+
+avoid_when:
+  - simple_web_search_or_extraction_is_sufficient
+  - arbitrary_script_execution_requested
+  - unrestricted_credential_use_requested
+
+inputs:
+  required:
+    - start_url
+    - objective
+  optional:
+    - allowed_origins
+    - operation_class
+    - max_steps
+    - timeout_ms
+    - artifact_policy
+    - session_ref
+  forbidden:
+    - provider
+    - executable_script
+    - javascript
+    - shell_command
+    - raw_playwright_api
+    - password
+    - access_token
+    - cookie_value
+    - filesystem_path_outside_artifact_scope
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: browser-session-result.v1
+  fields:
+    - final_url
+    - observations
+    - actions
+    - artifacts
+    - trace_ref
+    - side_effects
+    - provenance
+
+permissions:
+  external_network: policy_scoped
+  browser_control: true
+  filesystem_write: artifacts_only
+  shell: false
+  credentials:
+    caller_inline_credentials: forbidden
+    managed_session_refs_only: true
+
+approval:
+  required: conditional
+  triggers:
+    - operation_class_is_external_mutation
+    - submission_or_purchase_or_publish
+    - destructive_action
+
+external_gates: []
+
+execution_mode: executor_routed
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  reason: playwright_tool_binding_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "microsoft/playwright README documents Chromium/Firefox/WebKit automation, agent CLI/MCP surfaces, isolated browser contexts and tracing"
+    - "Ginkgo architecture separates Browser Operations from Firecrawl-style web data extraction"
+  blockers:
+    - sandbox_policy_missing
+    - origin_allowlist_enforcement_missing
+    - managed_session_secret_boundary_missing
+    - approval_interlock_tests_missing
+    - trace_evidence_contract_missing
+    - governed_e2e_missing
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - sandboxed_executor
+    - origin_allowlist
+    - operation_class_policy
+    - managed_session_credential_boundary
+    - approval_interlock_tests
+    - deterministic_trace_capture
+    - negative_script_injection_tests
+    - governed_browser_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: browser
