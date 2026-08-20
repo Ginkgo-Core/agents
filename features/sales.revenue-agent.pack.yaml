@@ -1,0 +1,147 @@
+id: sales.revenue-agent.pack
+version: 0.1.0
+kind: domain_skill_pack
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A0
+status: feature
+
+purpose: >
+  Define the provider-agnostic Sales/Revenue skill family used to discover,
+  normalize, enrich, qualify and convert demand into measurable pipeline and
+  revenue evidence. This pack does not authorize outreach or external writes.
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  caller_forbidden_from_selecting:
+    - skill
+    - binding
+    - tool
+    - adapter
+    - provider
+    - executor
+    - workflow_id
+    - endpoint
+    - credential
+
+capabilities:
+  - name: sales.lead.discover
+    skill_id: sales.lead.discover
+    behavior: discover candidate leads from policy-eligible governed sources
+    side_effect_authority: read_only
+    candidate_pattern_sources:
+      - asiifdev/business-leads-ai-automation
+      - brightdata/ai-lead-generator:reference_only
+
+  - name: sales.lead.normalize
+    skill_id: sales.lead.normalize
+    behavior: normalize supplied lead records into a canonical Ginkgo sales entity
+    side_effect_authority: local_transform_only
+
+  - name: sales.lead.enrich
+    skill_id: sales.lead.enrich
+    behavior: enrich a lead with policy-eligible data and explicit provenance
+    side_effect_authority: read_only
+
+  - name: sales.lead.qualify
+    skill_id: sales.lead.qualify
+    behavior: score fit against a versioned ICP and return reasons/evidence
+    side_effect_authority: analysis_only
+
+  - name: sales.intent.score
+    skill_id: sales.intent.score
+    behavior: score observable intent signals while distinguishing inference from observation
+    side_effect_authority: analysis_only
+
+  - name: sales.outreach.compose
+    skill_id: sales.outreach.compose
+    behavior: compose channel-appropriate outreach without sending it
+    side_effect_authority: generate_only
+
+  - name: sales.sequence.plan
+    skill_id: sales.sequence.plan
+    behavior: plan a bounded outreach/nurture sequence without executing channel side effects
+    side_effect_authority: plan_only
+
+  - name: sales.meeting.prepare
+    skill_id: sales.meeting.prepare
+    behavior: prepare structured meeting context, goals, evidence and open questions
+    side_effect_authority: read_generate_only
+
+  - name: sales.pipeline.record
+    skill_id: sales.pipeline.record
+    behavior: persist a governed pipeline state transition through an eligible CRM/state adapter
+    side_effect_authority: governed_write
+
+  - name: sales.attribution.calculate
+    skill_id: sales.attribution.calculate
+    behavior: calculate attribution with uncertainty and evidence refs
+    side_effect_authority: analysis_only
+
+  - name: sales.forecast.calculate
+    skill_id: sales.forecast.calculate
+    behavior: calculate forecast from observed/configured funnel state and declared assumptions
+    side_effect_authority: analysis_only
+
+  - name: sales.funnel.diagnose
+    skill_id: sales.funnel.diagnose
+    behavior: identify measurable funnel bottlenecks and return evidence-backed findings
+    side_effect_authority: analysis_only
+
+policies:
+  consent_and_suppression:
+    required_before_outreach_side_effect: true
+    opt_out_must_be_respected: true
+  provenance:
+    required_for_external_data: true
+  uncertainty:
+    distinguish_observed_inferred_missing: true
+  idempotency:
+    required_for_external_write: true
+  anti_bypass:
+    anti_bot_or_rate_limit_bypass_authorized: false
+  fallback_policy: none
+
+upstream_posture:
+  asiifdev/business-leads-ai-automation:
+    role: pattern_source
+    adoption: extract_patterns_not_scraping_authority
+  brightdata/ai-lead-generator:
+    role: reference_source
+    adoption: do_not_vendor_as_production_base
+
+routing:
+  routing_eligible: false
+  execution_scope: specification_eval_only
+  production_eligible: false
+  reason: feature_not_validated
+
+validation:
+  evidence: []
+  required_scenarios:
+    - provider_name_rejected_from_public_request
+    - duplicate_lead_is_idempotently_normalized
+    - missing_enrichment_data_is_not_fabricated
+    - inference_is_labeled
+    - suppressed_lead_blocks_outreach_execution
+    - attribution_uncertainty_is_exposed
+    - external_write_requires_idempotency_key
+    - fallback_remains_none
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_sales_domain_contracts
+    - deterministic_positive_and_negative_tests
+    - provenance_and_license_registry
+    - consent_suppression_policy_tests
+    - governed_read_only_e2e
+    - reviewer_approval
+
+owner_domain: sales
