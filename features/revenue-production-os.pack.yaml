@@ -1,0 +1,121 @@
+id: revenue.production-os.pack
+version: 0.1.0
+kind: cross_domain_feature_pack
+lifecycle_status: FEATURE
+maturity: F1
+status: feature
+routing_eligible: false
+production_eligible: false
+execution_scope: specification_eval_only
+fallback_policy: none
+architecture_ref: Ginkgo-Core/ai-stack/architecture/revenue-production-os-v1.md
+
+purpose: >
+  Define candidate capability families for batch-oriented content, UGC,
+  automation services, standardized service fulfillment and digital products.
+
+operational_objects:
+  owner: TaskOps/runtime
+  types: [Campaign, Batch, Job, Asset, Delivery, Performance]
+
+engines:
+  faceless_content:
+    priority: P0
+    mappings:
+      content.batch.plan: content-factory.batch.plan
+      content.batch.produce: content-factory.batch.produce
+      content.batch.evaluate: content-factory.batch.evaluate
+
+  ugc_media_buying:
+    priority: P1
+    mappings:
+      marketing.ugc.brief.generate: ugc-factory.brief.generate
+      marketing.ugc.script.generate: ugc-factory.script.generate
+      marketing.ugc.video.generate: ugc-factory.video.generate
+      marketing.creative.variant.generate: creative-factory.variant.generate
+      marketing.creative.qa.evaluate: creative-factory.qa.evaluate
+      marketing.ads.plan.generate: media-buying.plan.generate
+      marketing.ads.campaign.create: media-buying.campaign.create
+      marketing.ads.performance.read: media-buying.performance.read
+      marketing.ads.creative.evaluate: media-buying.creative.evaluate
+      marketing.ads.optimization.propose: media-buying.optimization.propose
+
+  automation_agency:
+    priority: P0
+    mappings:
+      automation.process.discover: automation-consulting.process.discover
+      automation.process.model: automation-consulting.process.model
+      automation.opportunity.score: automation-consulting.opportunity.score
+      automation.solution.design: automation-consulting.solution.design
+      automation.workflow.generate: automation-builder.workflow.generate
+      automation.workflow.validate: automation-builder.workflow.validate
+      automation.workflow.deploy: automation-ops.workflow.deploy
+      automation.workflow.monitor: automation-ops.workflow.monitor
+      automation.incident.diagnose: automation-ops.incident.diagnose
+      automation.optimization.propose: automation-ops.optimization.propose
+
+  freelance_fulfillment:
+    priority: P1
+    mappings:
+      services.opportunity.discover: service-sales.opportunity.discover
+      services.opportunity.qualify: service-sales.opportunity.qualify
+      services.proposal.compose: service-sales.proposal.compose
+      services.scope.estimate: service-sales.scope.estimate
+      services.job.plan: service-fulfillment.job.plan
+      services.job.fulfill: service-fulfillment.job.execute
+      services.job.qa.evaluate: service-fulfillment.qa.evaluate
+      services.delivery.package: service-fulfillment.delivery.package
+      services.invoice.prepare: service-finance.invoice.prepare
+      services.followup.compose: service-sales.followup.compose
+
+  digital_products_affiliate:
+    priority: P2
+    mappings:
+      commerce.digital-product.research: digital-product.research.execute
+      commerce.digital-product.validate: digital-product.validation.evaluate
+      commerce.digital-product.design: digital-product.design.compose
+      commerce.digital-product.create: digital-product.asset.create
+      commerce.digital-product.package: digital-product.package.compose
+      commerce.digital-product.publish: digital-product.publish.execute
+      commerce.affiliate.offer.select: affiliate-offer.select.evaluate
+      commerce.affiliate.content.generate: affiliate-content.generate.compose
+      commerce.funnel.compose: digital-funnel.compose.generate
+      commerce.funnel.performance.read: digital-funnel.performance.read
+      commerce.funnel.optimize: digital-funnel.optimization.propose
+
+shared_agent_roles:
+  - scout
+  - research
+  - strategist
+  - writer
+  - creative
+  - builder
+  - qa
+  - publisher_delivery
+  - analytics
+  - optimizer
+  - sales_account
+
+controls:
+  capability_skill_identity_distinct: required
+  generation_does_not_authorize_external_write: true
+  approval_and_external_gate_separate: true
+  external_write_idempotency_required: true
+  evidence_lineage_required: true
+  cost_telemetry_required: true
+  raw_secrets_in_payload: forbidden
+  automatic_publish_default: blocked
+  workflow_deploy_default: blocked
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_or_reused_domain_contracts
+    - positive_and_negative_evals
+    - p0_taxonomy_conformance
+    - implementation_authority_injection_tests
+    - cost_and_evidence_lineage_tests
+    - governed_e2e_per_engine
+    - github_evidence
+    - reviewer_approval
