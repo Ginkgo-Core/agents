@@ -1,0 +1,135 @@
+# Provider Binding Contract — worldmonitor.intelligence.events.search
+id: worldmonitor.intelligence.events.search
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Search normalized global intelligence events through a governed WorldMonitor
+  adapter while preserving source attribution, freshness and license posture.
+  The caller requests intelligence semantics, never WorldMonitor transport or tool names.
+
+capability:
+  name: intelligence.events.search
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  domain_input_schema_ref: Ginkgo-Core/ai-stack/contracts/agentic-foundation/intelligence-events-search.v1.schema.json
+  caller_selects: [capability.name, capability.contract_version, input]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: worldmonitor.intelligence.events.search
+  skill_version: 0.1.0
+  adapter_id: worldmonitor
+  provider: worldmonitor
+  transport_candidates: [rest, mcp]
+  source_repo: koala73/worldmonitor
+  internal_routing_metadata: true
+
+use_when:
+  - current_global_event_context_required
+  - geopolitical_or_infrastructure_signal_search_required
+  - attributed_multi_source_intelligence_required
+
+avoid_when:
+  - legal_or_financial_decision_requires_primary_source_only
+  - caller_requests_raw_provider_tool_selection
+  - unsupported_license_or_data_use_policy
+
+inputs:
+  required:
+    - query
+  optional:
+    - regions
+    - countries
+    - categories
+    - since
+    - until
+    - limit
+    - minimum_freshness
+  forbidden:
+    - provider
+    - adapter
+    - transport
+    - endpoint
+    - api_key
+    - raw_mcp_tool
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: intelligence-events-result.v1
+  fields:
+    - events
+    - category
+    - region
+    - occurred_at
+    - observed_at
+    - confidence
+    - source_refs
+    - freshness
+    - provenance
+
+permissions:
+  external_network: true
+  public_intelligence_read: true
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: [WORLDMONITOR_API_KEY]
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates:
+  - id: worldmonitor-license-review
+    status: BLOCKED
+  - id: worldmonitor-provider-validation
+    status: BLOCKED
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  reason: worldmonitor_adapter_and_license_posture_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "koala73/worldmonitor documents REST API, MCP, CLI and SDK access to geopolitical, finance, energy, aviation, cyber, military, infrastructure and news intelligence"
+    - "WorldMonitor source code is AGPL-3.0-only; Ginkgo requires explicit license/data-source review before integration or redistribution"
+  blockers:
+    - adapter_not_implemented
+    - license_review_missing
+    - upstream_source_attribution_contract_missing
+    - freshness_tests_missing
+    - normalized_error_tests_missing
+    - governed_read_only_e2e_missing
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_adapter
+    - license_and_terms_review
+    - source_attribution_preservation
+    - freshness_and_timestamp_tests
+    - normalized_errors
+    - rate_limit_policy
+    - secret_scan
+    - governed_read_only_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: intelligence
