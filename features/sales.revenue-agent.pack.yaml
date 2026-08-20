@@ -1,5 +1,5 @@
 id: sales.revenue-agent.pack
-version: 0.1.0
+version: 0.2.0
 kind: domain_skill_pack
 lifecycle_status: FEATURE
 maturity: F1
@@ -8,15 +8,12 @@ autonomy_level: A0
 status: feature
 
 purpose: >
-  Define the provider-agnostic Sales/Revenue skill family used to discover,
-  normalize, enrich, qualify and convert demand into measurable pipeline and
-  revenue evidence. This pack does not authorize outreach or external writes.
+  Define provider-agnostic Sales/Revenue capability candidates and distinct
+  internal skill identities. This pack does not authorize outreach or external writes.
 
 caller_contract:
   request: CapabilityRequest v1
-  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
   result: CapabilityResult v1
-  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
   caller_selects: [capability.name, capability.contract_version]
   caller_forbidden_from_selecting:
     - skill
@@ -31,66 +28,52 @@ caller_contract:
 
 capabilities:
   - name: sales.lead.discover
-    skill_id: sales.lead.discover
+    skill_id: sales-core.lead.discover
     behavior: discover candidate leads from policy-eligible governed sources
     side_effect_authority: read_only
-    candidate_pattern_sources:
-      - asiifdev/business-leads-ai-automation
-      - brightdata/ai-lead-generator:reference_only
-
   - name: sales.lead.normalize
-    skill_id: sales.lead.normalize
-    behavior: normalize supplied lead records into a canonical Ginkgo sales entity
+    skill_id: sales-core.lead.normalize
+    behavior: normalize supplied lead records into a canonical sales entity
     side_effect_authority: local_transform_only
-
   - name: sales.lead.enrich
-    skill_id: sales.lead.enrich
-    behavior: enrich a lead with policy-eligible data and explicit provenance
+    skill_id: sales-core.lead.enrich
+    behavior: enrich a lead with explicit provenance
     side_effect_authority: read_only
-
   - name: sales.lead.qualify
-    skill_id: sales.lead.qualify
+    skill_id: sales-core.lead.qualify
     behavior: score fit against a versioned ICP and return reasons/evidence
     side_effect_authority: analysis_only
-
   - name: sales.intent.score
-    skill_id: sales.intent.score
-    behavior: score observable intent signals while distinguishing inference from observation
+    skill_id: sales-core.intent.score
+    behavior: score observable intent while distinguishing inference from observation
     side_effect_authority: analysis_only
-
   - name: sales.outreach.compose
-    skill_id: sales.outreach.compose
+    skill_id: sales-core.outreach.compose
     behavior: compose channel-appropriate outreach without sending it
     side_effect_authority: generate_only
-
   - name: sales.sequence.plan
-    skill_id: sales.sequence.plan
-    behavior: plan a bounded outreach/nurture sequence without executing channel side effects
+    skill_id: sales-core.sequence.plan
+    behavior: plan a bounded outreach/nurture sequence without executing it
     side_effect_authority: plan_only
-
   - name: sales.meeting.prepare
-    skill_id: sales.meeting.prepare
+    skill_id: sales-core.meeting.prepare
     behavior: prepare structured meeting context, goals, evidence and open questions
     side_effect_authority: read_generate_only
-
   - name: sales.pipeline.record
-    skill_id: sales.pipeline.record
-    behavior: persist a governed pipeline state transition through an eligible CRM/state adapter
+    skill_id: sales-core.pipeline.record
+    behavior: persist a governed pipeline state transition through an eligible implementation
     side_effect_authority: governed_write
-
   - name: sales.attribution.calculate
-    skill_id: sales.attribution.calculate
+    skill_id: sales-core.attribution.calculate
     behavior: calculate attribution with uncertainty and evidence refs
     side_effect_authority: analysis_only
-
   - name: sales.forecast.calculate
-    skill_id: sales.forecast.calculate
-    behavior: calculate forecast from observed/configured funnel state and declared assumptions
+    skill_id: sales-core.forecast.calculate
+    behavior: calculate forecast from observed/configured funnel state and assumptions
     side_effect_authority: analysis_only
-
   - name: sales.funnel.diagnose
-    skill_id: sales.funnel.diagnose
-    behavior: identify measurable funnel bottlenecks and return evidence-backed findings
+    skill_id: sales-core.funnel.diagnose
+    behavior: identify measurable funnel bottlenecks with evidence-backed findings
     side_effect_authority: analysis_only
 
 policies:
@@ -124,6 +107,7 @@ routing:
 validation:
   evidence: []
   required_scenarios:
+    - capability_and_skill_identity_are_distinct
     - provider_name_rejected_from_public_request
     - duplicate_lead_is_idempotently_normalized
     - missing_enrichment_data_is_not_fabricated
