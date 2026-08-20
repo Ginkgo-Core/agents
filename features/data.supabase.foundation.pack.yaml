@@ -1,0 +1,348 @@
+# Supabase Data Platform Foundation — FEATURE pack
+version: 1
+id: data.supabase.foundation.pack
+lifecycle_status: FEATURE
+maturity: F1
+priority: P0_FOUNDATION
+routing_eligible: false
+production_eligible: false
+runtime_authority: false
+status: feature
+
+purpose: >
+  Incubate provider-agnostic data, identity, storage, vector, realtime and function
+  capabilities that may be implemented through Supabase adapters, while keeping
+  provider/tool/credential selection internal to Ginkgo routing and policy.
+
+architecture:
+  canonical_path: Caller -> CapabilityRequest -> Capability Bus -> Domain Router -> skill/version -> adapter -> provider -> CapabilityResult
+  taxonomy_invariant: CAPABILITY != SKILL != BINDING != TOOL != ADAPTER != PROVIDER != EXECUTOR
+  architecture_ref: Ginkgo-Core/ai-stack:feature/supabase-agentic-foundation-v1:architecture/supabase-agentic-foundation-v1.md
+
+upstream_sources:
+  - repo: supabase/supabase
+    ref: fd8ccf85b78ec216ccb4b6149327e3e8269ab32a
+    role: provider_platform_reference
+    vendored: false
+  - repo: supabase/supabase-js
+    ref: a249594bc5790929ff090baa64f2d5bb3a40c286
+    role: typescript_adapter_candidate
+    vendored: false
+  - repo: supabase/supabase-py
+    ref: 80fcba7fde5c2347fa5327c937b4551754732ccb
+    role: python_adapter_candidate
+    vendored: false
+  - repo: supabase/mcp
+    ref: a4663743b32c89a7bc656f281a29bd2860b66f0f
+    role: mcp_tool_adapter_candidate
+    vendored: false
+  - repo: supabase/agent-skills
+    ref: 8331f910845103c08d51f6ca1d86ebb7d1f745e3
+    role: procedural_reference
+    vendored: false
+
+# Upstream Agent Skills are reference material. They do not become a vendor-named
+# Ginkgo operational skill and they do not bypass Atlas promotion gates.
+procedural_references:
+  - id: upstream.supabase.agent-guidance
+    source: supabase/agent-skills
+    use_for:
+      - current_documentation_check
+      - auth_and_rls_review
+      - migration_workflow_review
+      - mcp_security_review
+      - debugging_workflow
+    ginkgo_skill: false
+  - id: upstream.supabase.postgres-best-practices
+    source: supabase/agent-skills
+    use_for:
+      - query_performance_review
+      - connection_management_review
+      - schema_design_review
+      - security_and_rls_review
+      - concurrency_review
+      - monitoring_review
+    ginkgo_skill: false
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects:
+    - capability.name
+    - capability.contract_version
+    - business_input
+    - governed_constraints
+  domain_router_resolves:
+    - skill_id
+    - skill_version
+    - binding_id
+    - adapter
+    - provider
+    - provider_profile
+  forbidden_routing_inputs:
+    - skill_id
+    - skill_version
+    - binding
+    - provider
+    - provider_profile
+    - adapter
+    - tool
+    - endpoint
+    - project_ref
+    - credential
+    - secret
+    - access_token
+    - refresh_token
+    - service_role
+
+candidate_capabilities:
+  - capability: data.record.read
+    contract_version: v1
+    purpose: Read authorized structured records without exposing the backing data platform.
+    candidate_binding:
+      id: supabase-postgrest.record.read
+      kind: provider_binding
+      adapter_candidates: [supabase-js, supabase-py, supabase-mcp]
+      provider: supabase
+      provider_surface: postgrest
+    authority: read_only
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+  - capability: identity.user.read
+    contract_version: v1
+    purpose: Read authorized user or identity state under tenant and privacy policy.
+    candidate_binding:
+      id: supabase-auth.user.read
+      kind: provider_binding
+      adapter_candidates: [supabase-js, supabase-py, supabase-mcp]
+      provider: supabase
+      provider_surface: auth
+    authority: read_only
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+  - capability: storage.object.read
+    contract_version: v1
+    purpose: Read authorized object metadata or content through a governed storage boundary.
+    candidate_binding:
+      id: supabase-storage.object.read
+      kind: provider_binding
+      adapter_candidates: [supabase-js, supabase-py]
+      provider: supabase
+      provider_surface: storage
+    authority: read_only
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+  - capability: knowledge.vector.search
+    contract_version: v1
+    purpose: Retrieve authorized semantic/vector matches without exposing pgvector or provider details to the caller.
+    candidate_binding:
+      id: supabase-pgvector.search
+      kind: provider_binding
+      adapter_candidates: [supabase-js, supabase-py, supabase-mcp]
+      provider: supabase
+      provider_surface: postgres_pgvector
+    authority: read_only
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+  - capability: database.schema.inspect
+    contract_version: v1
+    purpose: Inspect authorized database schema metadata without granting schema mutation authority.
+    candidate_binding:
+      id: supabase-mcp.schema.inspect
+      kind: provider_binding
+      adapter_candidates: [supabase-mcp]
+      provider: supabase
+      provider_surface: database_management
+    authority: read_only
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+  - capability: events.stream.subscribe
+    contract_version: v1
+    purpose: Subscribe to authorized record/event changes through a normalized event stream contract.
+    candidate_binding:
+      id: supabase-realtime.subscribe
+      kind: provider_binding
+      adapter_candidates: [supabase-js, supabase-py]
+      provider: supabase
+      provider_surface: realtime
+    authority: event_consume
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+  - capability: functions.invoke
+    contract_version: v1
+    purpose: Invoke a governed function contract while deriving side-effect authority from the function policy, not the transport.
+    candidate_binding:
+      id: supabase-edge-functions.invoke
+      kind: provider_binding
+      adapter_candidates: [supabase-js, supabase-py]
+      provider: supabase
+      provider_surface: edge_functions
+    authority: function_contract_defined
+    fallback_policy: none
+    lifecycle_ceiling: FEATURE
+    routing_eligible: false
+
+candidate_write_capabilities:
+  # Explicitly separate from reads. None is authorized by this pack.
+  - data.record.write
+  - storage.object.write
+  - knowledge.vector.upsert
+  - identity.user.manage
+  - database.schema.change
+
+write_authority:
+  enabled: false
+  default: DENY
+  requires:
+    - write_specific_capability_contract
+    - validated_binding
+    - identity_and_tenant_policy_authorization
+    - risk_classification
+    - approval_when_required
+    - idempotency_strategy
+    - rollback_or_compensation_when_applicable
+    - post_write_verification
+    - secret_scan
+    - cross_tenant_negative_tests
+
+adapter_candidates:
+  - id: supabase-js
+    taxonomy_role: adapter
+    language: typescript_javascript
+    upstream: supabase/supabase-js
+    provider: supabase
+    caller_selectable: false
+    routing_eligible: false
+    production_eligible: false
+
+  - id: supabase-py
+    taxonomy_role: adapter
+    language: python
+    upstream: supabase/supabase-py
+    provider: supabase
+    caller_selectable: false
+    routing_eligible: false
+    production_eligible: false
+
+  - id: supabase-mcp
+    taxonomy_role: adapter_tool_boundary
+    protocol: mcp
+    upstream: supabase/mcp
+    provider: supabase
+    caller_selectable: false
+    routing_eligible: false
+    production_eligible: false
+    default_profile:
+      project_scoped: true
+      read_only: true
+      features: explicit_allowlist
+      mutation_tools: excluded
+      account_level_tools: excluded_unless_explicitly_required
+
+provider_candidate:
+  id: supabase
+  taxonomy_role: provider
+  caller_selectable: false
+  profiles:
+    - supabase.hosted
+    - supabase.self_hosted
+    - supabase.local
+  routing_eligible: false
+  production_eligible: false
+
+security_invariants:
+  - exposed_schema_tables_require_rls_or_reviewed_non_user_exposure_exception
+  - authentication_alone_is_not_row_authorization
+  - user_editable_metadata_is_forbidden_for_authorization_decisions
+  - privileged_authorization_metadata_must_be_server_controlled
+  - service_role_or_secret_keys_are_forbidden_in_public_clients
+  - secret_values_are_forbidden_in_requests_results_logs_prompts_traces_and_evidence
+  - views_and_privileged_functions_require_explicit_security_review
+  - security_definer_is_exception_only_and_never_a_permission_error_shortcut
+  - update_policy_must_validate_current_access_and_allowed_new_state
+  - public_function_execution_and_exposed_schema_grants_require_review
+
+supply_chain_invariants:
+  - pin_sdk_and_cli_versions
+  - commit_lockfiles
+  - verify_package_provenance_or_signatures_when_available
+  - check_current_upstream_changelog_and_docs_for_version_sensitive_changes
+
+execution_policy:
+  live_execution: blocked
+  mutation: denied
+  mcp_tool_discovery_grants_authority: false
+  generic_sql_execution_grants_schema_change_authority: false
+  provider_selection_is_internal: true
+  fallback_policy: none
+
+validation_plan:
+  read_bindings:
+    - fixture_contract_tests
+    - invalid_input_tests
+    - authorization_and_rls_tests
+    - cross_tenant_negative_tests
+    - normalized_error_tests
+    - timeout_retry_tests_when_safe
+    - secret_scan
+    - adapter_parity_tests_where_multiple_bindings_apply
+    - one_governed_read_only_e2e
+  write_bindings:
+    - all_read_binding_requirements
+    - approval_tests_when_required
+    - idempotency_tests
+    - rollback_or_compensating_action_evidence
+    - post_write_verification
+  mcp_binding:
+    - project_scope_enforcement_test
+    - read_only_tool_surface_test
+    - feature_allowlist_test
+    - mutation_tool_exclusion_test
+    - account_level_tool_exclusion_test
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  blockers:
+    - no_ginkgo_adapter_implementation
+    - no_contract_test_pack
+    - no_cross_tenant_security_evidence
+    - no_secret_scan_evidence
+    - no_read_only_e2e
+    - no_write_approval_idempotency_evidence
+    - no_runtime_observability_contract
+  requires:
+    - architecture_review
+    - provider_and_adapter_registry_review
+    - capability_contract_review
+    - implementation_in_canonical_runtime_repo
+    - reproducible_evidence
+    - reviewer_approval
+
+non_goals:
+  - install_or_enable_supabase_mcp
+  - create_supabase_projects
+  - create_or_rotate_credentials
+  - execute_sql
+  - create_tables_policies_functions_or_buckets
+  - change_rls
+  - vendor_upstream_code_or_skill_text
+  - create_vendor_named_public_capabilities
+  - enable_live_mutation
+  - lifecycle_promotion
+
+owner_domain: data-platform
