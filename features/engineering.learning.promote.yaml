@@ -1,0 +1,124 @@
+# Internal Agent Workflow Candidate — engineering.learning.promote
+id: engineering.learning.promote
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L3
+autonomy_level: A2
+status: feature
+priority: P2
+
+purpose: >
+  Convert repeated operational evidence into deduplicated candidate lessons and
+  reviewed skill-change proposals without allowing runtime memory or one-off
+  experience to directly mutate production skills, policies or knowledge.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - repeated_agent_failure_or_success_pattern_is_observed
+  - same_workaround_recurs_across_sessions_or_projects
+  - eval_failures_reveal_a_stable_instruction_gap
+  - context_or_trigger_metrics_show_stable_skill_friction
+
+input_classes:
+  - operational_evidence_refs
+  - eval_failure_refs
+  - incident_or_audit_refs
+  - aggregated_context_and_discovery_metrics
+  - human_feedback_refs
+
+learning_pipeline:
+  - collect_evidence_without_promoting_it_to_knowledge
+  - normalize_pattern_and_scope
+  - inventory_existing_skill_rule_reference_or_tool_for_duplicates
+  - score_recurrence_cost_risk_stability_and_coverage
+  - choose_no_change_or_candidate_lesson
+  - classify_target_as_skill_reference_rule_tool_or_other_asset
+  - propose_minimal_change
+  - route_behavior_change_to_engineering_skill_eval
+  - require_independent_review_and_pr
+  - record_promotion_decision_and_pinned_commit
+
+promotion_boundary:
+  experience_to_candidate_lesson: allowed
+  candidate_lesson_to_change_proposal: allowed
+  change_proposal_to_pr: candidate
+  candidate_lesson_to_production_skill: forbidden
+  runtime_memory_to_promoted_knowledge: separate_knowledge_promotion_required
+  self_approval: forbidden
+  self_promotion: forbidden
+
+no_change_policy:
+  valid_outcome: true
+  reasons:
+    - insufficient_recurrence
+    - unstable_pattern
+    - duplicate_existing_asset
+    - low_value_relative_to_context_or_maintenance_cost
+    - evidence_conflict
+
+skill_optimization_candidates:
+  - sharpen_trigger_pointer
+  - remove_duplicate_or_dead_instruction
+  - move_branch_specific_reference_behind_progressive_disclosure
+  - reduce_always_loaded_context
+  - add_missing_eval_case
+  - split_or_merge_skills_when_evidence_supports_the_boundary
+  - deprecate_stale_candidate
+
+side_effect_authority:
+  runtime_memory_write: candidate_only_under_separate_memory_policy
+  repository_write: proposal_or_feature_branch_only
+  production_skill_mutation: false
+  global_prompt_mutation: false
+  permissions_mutation: false
+  lifecycle_promotion: false
+  merge: false
+  deploy: false
+  release: false
+
+outputs:
+  type: learning_promotion_proposal
+  required_sections:
+    - evidence_set
+    - normalized_pattern
+    - recurrence_and_stability_score
+    - duplicate_inventory
+    - selected_asset_type_or_no_change
+    - proposed_change
+    - required_evals
+    - context_impact
+    - promotion_path
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+    - composes with engineering.reflect
+  limitations:
+    - no memory aggregation runtime
+    - no candidate lesson store
+    - no automated dedup benchmark
+    - no promotion runtime
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - repeated_signal_fixture
+    - one_off_signal_no_change_fixture
+    - duplicate_asset_fixture
+    - conflicting_evidence_fixture
+    - context_optimization_fixture
+    - no_direct_production_mutation_test
+    - skill_eval_handoff_test
+    - reviewer_approval
+
+owner_domain: engineering

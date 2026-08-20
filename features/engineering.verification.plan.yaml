@@ -1,0 +1,79 @@
+# Internal Agent Workflow Candidate — engineering.verification.plan
+id: engineering.verification.plan
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A0
+status: feature
+
+purpose: >
+  Convert a non-trivial implementation request into explicit behavioral claims,
+  uncertainty, failure modes and a minimum non-duplicative evidence path before
+  implementation begins.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+workflow_phases:
+  - state_claim_and_material_uncertainty
+  - derive_candidate_evidence_paths_from_real_system_boundaries
+  - choose_preferred_path_and_verification_budget
+  - define_smallest_verification_affordance_if_decisive_state_is_not_observable
+  - research_unknown_external_constraints_when_required
+  - make_setup_state_and_interpretation_runnable
+  - close_path_by_establishing_limiting_or_refuting_the_claim
+
+principles:
+  - claim_driven_not_tool_driven
+  - minimum_non_duplicate_evidence
+  - immutable_evidence_reuse_only_when_inputs_and_environment_are_equivalent
+  - verification_affordance_is_not_automatically_a_product_feature
+  - remaining_uncertainty_must_be_reported
+
+side_effect_authority:
+  repository_write: false
+  dependency_install: false
+  persistent_diagnostic_surface: false
+  production_access: false
+
+permissions:
+  project_read: true
+  external_research: only_when_required
+  secrets: forbidden
+
+outputs:
+  type: verification_plan
+  required_sections:
+    - claim
+    - uncertainty_and_failure_modes
+    - preferred_evidence_path
+    - alternative_paths
+    - verification_budget
+    - required_affordances
+    - closure_criteria
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - upstream conceptual reference akitaonrails/my-skills verification-planning at pinned commit
+  limitations:
+    - no Ginkgo planning eval corpus
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - behavior_change_claim_fixture
+    - ambiguous_evidence_path_fixture
+    - reusable_evidence_equivalence_fixture
+    - verification_affordance_fixture
+    - evaluator_rubric_for_plan_quality
+    - reviewer_approval
+
+owner_domain: engineering

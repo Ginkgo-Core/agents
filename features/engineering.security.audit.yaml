@@ -1,0 +1,95 @@
+# Internal Agent Workflow Candidate — engineering.security.audit
+id: engineering.security.audit
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Threat-model and audit a bounded code, commit-range or release surface for
+  exploitable trust-boundary failures while preventing the audit itself from
+  becoming an unsafe execution or secret-exposure path.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+security_domains:
+  - authentication_and_session
+  - authorization_and_capability_scope
+  - tenant_and_data_isolation
+  - injection_and_path_boundaries
+  - secrets_privacy_and_logging
+  - subprocess_plugin_mcp_and_tool_execution
+  - persistence_integrity_and_rollback
+  - network_webhook_and_ssrf
+  - cryptography_randomness_and_signature_verification
+  - availability_resource_bounds_and_retries
+  - supply_chain_ci_release_and_artifact_provenance
+  - malicious_code_and_prompt_injection
+
+workflow_phases:
+  - define_scope_assets_actors_entrypoints_and_out_of_scope
+  - statically_inventory_execution_and_supply_chain_surfaces
+  - review_automated_tool_execution_paths_before_running_them
+  - manually_trace_untrusted_inputs_to_privileged_sinks
+  - run focused adversarial tests only in isolated authorized scope
+  - report findings_with_exploit_path_remediation_tests_and_residual_scope
+
+hard_guardrails:
+  - never_execute_unknown_binaries_or_scripts_before_static_review
+  - never_expose_production_credentials_browser_sessions_or_docker_socket
+  - never_probe_unrelated_or_unapproved_production_systems
+  - use_synthetic_or_inert_test_data
+  - scanner_green_does_not_equal_secure
+
+side_effect_authority:
+  repository_write: false
+  production_probe: false
+  exploit_deployment: false
+  secret_rotation: false
+  release: false
+
+permissions:
+  repository_read: true
+  configured_scanner_read: candidate
+  isolated_adversarial_tests: candidate
+  production_access: false
+  secrets: forbidden
+
+outputs:
+  type: security_audit_report
+  required_sections:
+    - threat_model
+    - automated_evidence_and_caveats
+    - substantiated_findings
+    - reviewed_boundaries_without_finding
+    - residual_risk_and_untested_scope
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - upstream conceptual reference akitaonrails/my-skills security-audit at pinned commit
+  limitations:
+    - no Ginkgo security fixture suite
+    - no sandbox integration evidence
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - prompt_injection_fixture
+    - authz_and_tenant_isolation_fixture
+    - secret_leak_and_ci_permission_fixture
+    - supply_chain_fixture
+    - unsafe_execution_pre_static_gate_fixture
+    - isolated_adversarial_test_evidence
+    - reviewer_approval
+
+owner_domain: security-engineering

@@ -1,0 +1,116 @@
+# Feature Pack — Agent Foundry
+id: engineering.agent-foundry.pack
+version: 0.1.0
+kind: agent_workflow_feature_pack
+lifecycle_status: FEATURE
+maturity: F1
+status: feature
+priority: P1
+
+purpose: >
+  Incubate the Ginkgo-native authoring, evaluation, discovery, security,
+  learning and autonomous-operations primitives required to produce reusable
+  agent skills with reproducible evidence and controlled context load.
+
+architecture_boundary:
+  public_capability: null
+  invocation_boundary: internal_agent_workflow
+  capability_bus_required_for_invocation: false
+  domain_router_required_for_invocation: false
+  executor_router_selected_by_feature: false
+  provider_routing: not_applicable
+
+members:
+  - engineering.skill.author
+  - engineering.skill.eval
+  - engineering.skill.discovery
+  - engineering.skill.security.scan
+  - engineering.subagent.execute
+  - engineering.learning.promote
+  - engineering.event.route
+  - engineering.repo.autonomous.maintain
+
+composes_with:
+  - engineering.verification.plan
+  - engineering.pr.audit
+  - engineering.pr.post_audit
+  - engineering.security.audit
+  - engineering.reflect
+
+source_provenance:
+  adaptation: concept_derived_original_ginkgo_spec
+  vendored_content: false
+  sources:
+    - repository: anthropics/skills
+      commit: 0a64e398ec6bb34a494f0c347e8ccae53a862f8e
+      concepts: [skill_package, dynamic_loading, metadata_discovery]
+    - repository: mattpocock/skills
+      commit: 885e2ca4d842d139e9aef4e48d366c63cb1b8013
+      concepts: [context_pointers, progressive_disclosure, invocation_modes, router_skills]
+    - repository: obra/superpowers
+      commit: b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+      concepts: [skill_tdd, subagents, spec_review, quality_review, verification]
+    - repository: affaan-m/ECC
+      commit: d8409a4b0813771235555e32e3d8046a73988bfa
+      concepts: [memory, hooks, security_scan, continuous_learning]
+    - repository: ultraworkers/claw-code
+      commit: 08106b0c3771ef5b4a5aa176acccd460e88b7325
+      concepts: [event_routing, multi_agent_coordination, bounded_retries, agent_managed_repo]
+
+invariants:
+  - feature_ne_skill
+  - public_capability_ne_internal_agent_workflow
+  - evidence_over_claims
+  - no_direct_experience_to_production_skill_mutation
+  - no_self_approval_or_self_promotion
+  - trigger_metadata_is_not_workflow_body
+  - progressive_disclosure_over_context_sprawl
+  - event_delivery_outside_worker_context_when_possible
+  - bounded_retries_with_circuit_breakers
+  - no_implicit_merge_deploy_release_secret_or_policy_mutation
+
+permissions:
+  repository_read: feature_defined
+  repository_write: false
+  external_network: feature_defined_read_only_when_required
+  production_write: false
+  secrets: forbidden
+  merge: false
+  deploy: false
+  release: false
+  policy_mutation: false
+  lifecycle_promotion: false
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+  reason: foundry_candidates_not_validated
+
+validation:
+  evidence:
+    - five upstream repositories inspected at pinned commits
+    - Ginkgo P0 architecture and Skill Atlas lifecycle reviewed
+  limitations:
+    - no harness-neutral SKILL.md prototypes for Foundry members
+    - no Ginkgo behavioral eval suite executed
+    - no context-budget benchmarks
+    - no runtime learning pipeline
+    - no event-router runtime
+    - no autonomous repository runtime
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - canonical_agent_skill_package_contract
+    - canonical_skill_eval_contract
+    - deterministic_or_reproducible_eval_fixtures
+    - baseline_behavior_evidence_where_applicable
+    - pressure_and_adversarial_evals_where_applicable
+    - provenance_and_license_gate
+    - context_budget_review
+    - mutation_guardrail_tests
+    - reviewer_approval
+
+owner_domain: engineering

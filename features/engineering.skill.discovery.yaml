@@ -1,0 +1,123 @@
+# Internal Agent Workflow Candidate — engineering.skill.discovery
+id: engineering.skill.discovery
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1
+
+purpose: >
+  Discover and load the minimum relevant agent-skill context for a task using
+  trigger metadata, invocation policy, router skills and progressive disclosure
+  without becoming a business Domain Router.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - agent_has_access_to_multiple_skills
+  - relevant_skill_should_be_loaded_dynamically
+  - skill_catalog_context_cost_requires_control
+  - explicit_user_skill_set_needs_a_human_facing_router
+
+invocation_modes:
+  model:
+    discoverable_by_agent: true
+    trigger_pointer_required: true
+    context_cost: always_loaded_pointer
+  explicit:
+    discoverable_by_agent: false
+    invoked_by: [human, authorized_orchestrator]
+    context_cost: zero_until_invoked
+
+routing_model:
+  input:
+    - task_semantics
+    - compact_skill_trigger_metadata
+    - invocation_policy
+    - lifecycle_eligibility
+  output:
+    - ranked_candidate_skill_ids
+    - selected_skill_ids
+    - reason
+  forbidden_authority:
+    - provider_selection
+    - adapter_selection
+    - public_capability_routing
+    - executor_assignment
+
+context_pointer_rules:
+  description_purpose: when_to_load_not_how_to_execute
+  one_trigger_per_semantic_branch: preferred
+  workflow_summary_in_pointer: discouraged
+  stable_domain_vocabulary: preferred
+  stale_or_duplicate_pointer: fail_review
+
+progressive_disclosure:
+  tier_1: compact_trigger_metadata
+  tier_2: selected_SKILL_md
+  tier_3: branch_specific_references_scripts_or_templates
+  load_entire_catalog: forbidden
+
+context_budget:
+  always_loaded_pointer_tokens: required_metric
+  selected_skill_body_tokens: required_metric
+  disclosed_reference_tokens: required_metric_when_loaded
+  duplicate_meaning_penalty: required_review_dimension
+  stale_reference_penalty: required_review_dimension
+
+router_skills:
+  role: human_cognitive_load_reduction
+  may_recommend_explicit_skills: true
+  may_be_domain_router: false
+  may_select_provider: false
+  may_grant_permissions: false
+
+side_effect_authority:
+  repository_write: false
+  production_write: false
+  secret_access: false
+  lifecycle_promotion: false
+
+outputs:
+  type: skill_discovery_decision
+  required_sections:
+    - candidate_ids
+    - selected_ids
+    - invocation_modes
+    - pointer_matches
+    - context_budget
+    - rejected_candidates
+    - lifecycle_eligibility
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+  limitations:
+    - no index implementation
+    - no ranking benchmark
+    - no token/context benchmark
+    - no false_positive_false_negative eval corpus
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - trigger_precision_eval
+    - trigger_recall_eval
+    - explicit_invocation_isolation_test
+    - progressive_disclosure_test
+    - context_budget_benchmark
+    - router_skill_boundary_test
+    - lifecycle_filter_test
+    - reviewer_approval
+
+owner_domain: engineering
