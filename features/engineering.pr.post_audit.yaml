@@ -1,0 +1,82 @@
+# Internal Agent Workflow Candidate — engineering.pr.post_audit
+id: engineering.pr.post_audit
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Audit the exact combined default-branch tree after one or more merges and before
+  release handoff, proving provenance, cross-change composition, exact-main checks,
+  compatibility, documentation and residual risk independently of isolated PR audits.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - merged_changes_require_combined_tree_audit
+  - release_candidate_requires_exact_main_evidence
+  - multiple_individually_reviewed_changes_may_interact
+
+workflow_phases:
+  - pin_base_and_exact_default_branch_head
+  - inventory_pr_and_direct_commit_provenance
+  - reconcile_prior_claims_against_final_tree
+  - run_combined_hostile_change_and_security_sweep
+  - inspect_cross_pr_defaults_policy_schema_and_lifecycle_interactions
+  - verify_docs_release_ledger_and_exact_main_checks
+  - produce_release_readiness_handoff_without_releasing
+
+side_effect_authority:
+  repository_write: false
+  merge: false
+  deploy: false
+  release: false
+  tag: false
+
+permissions:
+  repository_read: true
+  hosted_ci_read: true
+  isolated_final_tree_checks: candidate
+  production_access: false
+  secrets: forbidden
+
+outputs:
+  type: post_audit_report
+  required_sections:
+    - base_sha
+    - exact_head_sha
+    - provenance_inventory
+    - cross_change_findings
+    - exact_main_evidence
+    - documentation_release_ledger
+    - residual_risk
+    - release_readiness
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - upstream conceptual reference akitaonrails/my-skills pr-post-audit at pinned commit
+  limitations:
+    - no Ginkgo composition fixtures
+    - no exact-main eval harness
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - cross_pr_policy_bypass_fixture
+    - combined_default_drift_fixture
+    - pr_head_vs_exact_main_ci_fixture
+    - release_blocker_fixture
+    - isolated_end_to_end_post_audit
+    - reviewer_approval
+
+owner_domain: engineering

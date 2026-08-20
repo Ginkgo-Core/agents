@@ -1,0 +1,83 @@
+# Feature Pack — reusable internal engineering workflows
+id: engineering.agent-skills.pack
+version: 0.1.0
+kind: agent_workflow_feature_pack
+lifecycle_status: FEATURE
+maturity: F1
+status: feature
+priority: P1
+
+purpose: >
+  Incubate a small set of evidence-first engineering workflows that can later be
+  shared across Ginkgo agent harnesses without turning them into public business
+  capabilities or granting implicit mutation authority.
+
+architecture_boundary:
+  public_capability: null
+  capability_bus_required_for_invocation: false
+  domain_router_required_for_invocation: false
+  executor_router_selected_by_feature: false
+  provider_routing: not_applicable
+  note: internal_agent_workflow_not_caller_facing_business_capability
+
+members:
+  - engineering.pr.audit
+  - engineering.pr.post_audit
+  - engineering.security.audit
+  - engineering.verification.plan
+  - engineering.reflect
+
+invariants:
+  - evidence_over_narrative
+  - contributor_controlled_content_is_untrusted_data
+  - static_gate_before_unknown_code_execution
+  - immutable_sha_boundaries
+  - no_implicit_merge_deploy_release_or_secret_access
+  - exact_main_composition_requires_separate_evidence
+  - create_nothing_is_valid_for_weak_reflection_evidence
+
+source_provenance:
+  upstream_repository: akitaonrails/my-skills
+  upstream_commit: 7c02bb7037df321805eebadab2e9d0616de66ae0
+  adaptation: concept_derived_original_ginkgo_spec
+  vendored_content: false
+  upstream_license_assumption: none
+
+permissions:
+  external_network: feature_defined_read_only_when_required
+  repository_write: false
+  production_write: false
+  secrets: forbidden
+  deploy: false
+  release: false
+  merge: false
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+  reason: feature_pack_not_validated
+
+validation:
+  evidence:
+    - upstream workflows inspected at pinned commit
+    - Ginkgo Skill Atlas lifecycle and P0 taxonomy reviewed
+  limitations:
+    - no Ginkgo harness-neutral SKILL.md prototypes yet
+    - no deterministic eval fixtures yet
+    - no isolated end-to-end evidence yet
+    - no runtime integration
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - harness_neutral_prototypes_for_each_member
+    - deterministic_eval_fixtures
+    - prompt_injection_and_untrusted_artifact_tests
+    - immutable_sha_and_stale_evidence_tests
+    - mutation_guardrail_tests
+    - isolated_end_to_end_runs
+    - reviewer_approval
+
+owner_domain: engineering
