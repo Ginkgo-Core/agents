@@ -1,0 +1,107 @@
+# Internal Agent Workflow Candidate — engineering.skill.security.scan
+id: engineering.skill.security.scan
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1
+
+purpose: >
+  Statically inspect agent skill packages and harness configuration for unsafe
+  instructions, permission escalation, secret exposure, executable supply-chain
+  surfaces and provenance violations before installation or promotion.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - third_party_skill_is_considered_for_import
+  - skill_package_contains_scripts_hooks_or_mcp_configuration
+  - permissions_or_secrets_surface_changes
+  - skill_is_considered_for_harness_installation_or_promotion
+
+scan_surfaces:
+  - SKILL_md_and_agent_instruction_files
+  - scripts_and_executable_helpers
+  - hooks_and_lifecycle_callbacks
+  - mcp_and_connector_configuration
+  - permissions_and_tool_allowlists
+  - secret_or_credential_references
+  - network_and_download_behavior
+  - dependency_and_install_scripts
+  - provenance_and_license_metadata
+  - prompt_injection_or_untrusted_instruction_boundaries
+
+static_first:
+  unknown_code_execution_before_static_gate: forbidden
+  secretful_environment_execution: forbidden
+  dynamic_checks: isolated_and_synthetic_only_when_required
+
+severity_model:
+  critical:
+    - credential_exfiltration_or_secret_capture
+    - hidden_remote_code_execution
+    - destructive_or_privilege_escalating_default_behavior
+  high:
+    - undeclared_write_or_network_authority
+    - unsafe_hook_or_install_script
+    - provenance_or_license_mismatch_with_reuse
+  medium:
+    - ambiguous_permission_boundary
+    - excessive_context_or_untrusted_instruction_exposure
+  low:
+    - documentation_or_manifest_hardening_gap
+
+side_effect_authority:
+  repository_write: false
+  install_skill: false
+  enable_hook: false
+  enable_mcp: false
+  secret_access: false
+  production_access: false
+  lifecycle_promotion: false
+
+outputs:
+  type: agent_skill_security_report
+  required_sections:
+    - package_identity_and_commit
+    - static_gate
+    - findings_by_severity
+    - permission_surface
+    - executable_surface
+    - provenance_license_surface
+    - untrusted_instruction_surface
+    - residual_uncertainty
+    - install_or_promotion_recommendation
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+    - composes with engineering.security.audit
+  limitations:
+    - no scanner implementation
+    - no malicious skill fixture corpus
+    - no hook or MCP sandbox harness
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - secret_exfiltration_fixture
+    - unsafe_hook_fixture
+    - hidden_download_exec_fixture
+    - undeclared_permission_fixture
+    - prompt_injection_fixture
+    - provenance_license_mismatch_fixture
+    - safe_package_control_fixture
+    - reviewer_approval
+
+owner_domain: engineering
