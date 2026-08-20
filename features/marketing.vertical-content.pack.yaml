@@ -1,0 +1,155 @@
+id: marketing.vertical-content.pack
+version: 0.1.0
+kind: domain_skill_pack
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A0
+status: feature
+
+purpose: >
+  Define provider-neutral skills for vertical content production connected to
+  campaign identity, performance analytics and revenue attribution. Upstream
+  video-generation projects are pattern sources or internal implementations,
+  never public capability boundaries.
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  caller_forbidden_from_selecting:
+    - moneyprinterturbo
+    - shortgpt
+    - comfyui
+    - provider
+    - adapter
+    - tool
+    - executor
+    - graph_json
+    - checkpoint
+    - workflow_id
+
+capabilities:
+  - name: marketing.content.brief.generate
+    skill_id: marketing.content.brief.generate
+    behavior: generate an evidence-backed content brief for a defined audience, offer and channel
+    side_effect_authority: generate_only
+
+  - name: marketing.content.script.generate
+    skill_id: marketing.content.script.generate
+    behavior: generate a script from approved brief/evidence with claims and provenance constraints
+    side_effect_authority: generate_only
+
+  - name: media.voice.generate
+    skill_id: media.voice.generate
+    behavior: generate voice media through an eligible adapter/provider under voice-rights policy
+    side_effect_authority: asset_generation
+
+  - name: media.asset.select
+    skill_id: media.asset.select
+    behavior: select eligible source/generated assets with explicit rights/provenance metadata
+    side_effect_authority: read_select_only
+
+  - name: media.video.compose
+    skill_id: media.video.compose
+    behavior: compose normalized media inputs into a deliverable video asset
+    side_effect_authority: asset_generation
+    candidate_pattern_sources:
+      - harry0703/MoneyPrinterTurbo
+      - RayVentura/ShortGPT
+
+  - name: marketing.content.package
+    skill_id: marketing.content.package
+    behavior: produce channel-specific title/caption/thumbnail/metadata variants without publishing
+    side_effect_authority: generate_only
+
+  - name: marketing.content.publish
+    skill_id: marketing.content.publish
+    behavior: publish an approved content package through an eligible channel adapter
+    side_effect_authority: governed_external_write
+
+  - name: analytics.content.performance.read
+    skill_id: analytics.content.performance.read
+    behavior: read normalized content performance metrics with source/time provenance
+    side_effect_authority: read_only
+
+composition:
+  canonical_flow:
+    - marketing.content.brief.generate
+    - marketing.content.script.generate
+    - media.voice.generate
+    - media.asset.select
+    - media.video.compose
+    - marketing.content.package
+    - marketing.content.publish
+    - analytics.content.performance.read
+  revenue_feedback:
+    target_capabilities:
+      - sales.attribution.calculate
+      - sales.funnel.diagnose
+    requirement: propagate_campaign_and_source_identity
+
+upstream_posture:
+  harry0703/MoneyPrinterTurbo:
+    role: pattern_source
+    optional_future_role: lab_adapter_candidate
+    public_capability_namespace: forbidden
+  RayVentura/ShortGPT:
+    role: pattern_source
+    public_capability_namespace: forbidden
+  Comfy-Org/ComfyUI:
+    role: media_runtime_candidate
+    integration_boundary: existing_creative_pyre_routing
+    public_capability_namespace: forbidden
+
+rights_and_compliance:
+  model_license_provenance_required: true
+  custom_node_license_provenance_required: true
+  voice_rights_required: true
+  likeness_rights_required_when_applicable: true
+  music_asset_license_required: true
+  source_asset_license_required: true
+  originality_gate_before_publish: true
+  content_fingerprint_required: true
+
+side_effect_policy:
+  publish_requires_policy_interlock: true
+  publish_requires_idempotency: true
+  publish_halt_path_required: true
+  generation_does_not_authorize_publish: true
+
+routing:
+  routing_eligible: false
+  execution_scope: specification_eval_only
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence: []
+  required_scenarios:
+    - provider_or_upstream_name_rejected_from_public_request
+    - missing_asset_license_blocks_publish_candidate
+    - unauthorized_voice_or_likeness_blocks_candidate
+    - near_duplicate_is_detected
+    - generation_does_not_imply_publish_authority
+    - repeated_publish_request_is_idempotent
+    - content_cost_is_recordable
+    - campaign_identity_survives_to_performance_result
+    - fallback_remains_none
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_domain_contracts_or_reuse_of_existing_media_contracts
+    - rights_and_provenance_registry
+    - deterministic_positive_and_negative_tests
+    - publish_approval_and_idempotency_tests
+    - governed_e2e_with_non_customer_test_channel_or_fixture
+    - reviewer_approval
+
+owner_domain: marketing_media
