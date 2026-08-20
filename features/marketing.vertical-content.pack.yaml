@@ -1,5 +1,5 @@
 id: marketing.vertical-content.pack
-version: 0.1.0
+version: 0.2.0
 kind: domain_skill_pack
 lifecycle_status: FEATURE
 maturity: F1
@@ -8,16 +8,12 @@ autonomy_level: A0
 status: feature
 
 purpose: >
-  Define provider-neutral skills for vertical content production connected to
-  campaign identity, performance analytics and revenue attribution. Upstream
-  video-generation projects are pattern sources or internal implementations,
-  never public capability boundaries.
+  Define provider-neutral vertical-content capabilities with distinct internal
+  skill identities, campaign lineage, rights controls and performance feedback.
 
 caller_contract:
   request: CapabilityRequest v1
-  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
   result: CapabilityResult v1
-  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
   caller_selects: [capability.name, capability.contract_version]
   caller_forbidden_from_selecting:
     - moneyprinterturbo
@@ -33,46 +29,28 @@ caller_contract:
 
 capabilities:
   - name: marketing.content.brief.generate
-    skill_id: marketing.content.brief.generate
-    behavior: generate an evidence-backed content brief for a defined audience, offer and channel
+    skill_id: content-core.brief.generate
     side_effect_authority: generate_only
-
   - name: marketing.content.script.generate
-    skill_id: marketing.content.script.generate
-    behavior: generate a script from approved brief/evidence with claims and provenance constraints
+    skill_id: content-core.script.generate
     side_effect_authority: generate_only
-
   - name: media.voice.generate
-    skill_id: media.voice.generate
-    behavior: generate voice media through an eligible adapter/provider under voice-rights policy
+    skill_id: media-core.voice.generate
     side_effect_authority: asset_generation
-
   - name: media.asset.select
-    skill_id: media.asset.select
-    behavior: select eligible source/generated assets with explicit rights/provenance metadata
+    skill_id: media-core.asset.select
     side_effect_authority: read_select_only
-
   - name: media.video.compose
-    skill_id: media.video.compose
-    behavior: compose normalized media inputs into a deliverable video asset
+    skill_id: media-core.video.compose
     side_effect_authority: asset_generation
-    candidate_pattern_sources:
-      - harry0703/MoneyPrinterTurbo
-      - RayVentura/ShortGPT
-
   - name: marketing.content.package
-    skill_id: marketing.content.package
-    behavior: produce channel-specific title/caption/thumbnail/metadata variants without publishing
+    skill_id: content-core.package.generate
     side_effect_authority: generate_only
-
   - name: marketing.content.publish
-    skill_id: marketing.content.publish
-    behavior: publish an approved content package through an eligible channel adapter
+    skill_id: content-core.publish.execute
     side_effect_authority: governed_external_write
-
   - name: analytics.content.performance.read
-    skill_id: analytics.content.performance.read
-    behavior: read normalized content performance metrics with source/time provenance
+    skill_id: content-analytics.performance.read
     side_effect_authority: read_only
 
 composition:
@@ -89,7 +67,7 @@ composition:
     target_capabilities:
       - sales.attribution.calculate
       - sales.funnel.diagnose
-    requirement: propagate_campaign_and_source_identity
+    requirement: propagate_campaign_batch_job_and_source_identity
 
 upstream_posture:
   harry0703/MoneyPrinterTurbo:
@@ -131,6 +109,7 @@ fallback_policy: none
 validation:
   evidence: []
   required_scenarios:
+    - capability_and_skill_identity_are_distinct
     - provider_or_upstream_name_rejected_from_public_request
     - missing_asset_license_blocks_publish_candidate
     - unauthorized_voice_or_likeness_blocks_candidate
