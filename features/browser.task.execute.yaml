@@ -1,5 +1,5 @@
 id: browser.task.execute
-version: 0.1.0
+version: 0.2.0
 kind: provider_bound_skill_candidate
 lifecycle_status: FEATURE
 maturity: F1
@@ -18,16 +18,14 @@ capability:
 
 caller_contract:
   request: CapabilityRequest v1
-  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
   result: CapabilityResult v1
-  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
   caller_selects: [capability.name, capability.contract_version]
   domain_router_resolves: [skill_id, skill_version, adapter, provider]
   executor_router_resolves: [executor]
 
 implementation_binding:
-  skill_id: browser.task.execute
-  skill_version: 0.1.0
+  skill_id: goal-browser.task.execute
+  skill_version: 0.2.0
   binding_id: browser-use.browser.task.execute
   adapter_id: browser-use
   provider: browser-use-runtime
@@ -41,17 +39,8 @@ semantic_boundary:
     reason: goal_directed_agentic_steps_are_not_proven_equivalent_to_bounded_deterministic_session_steps
 
 inputs:
-  required:
-    - goal
-    - allowed_origins
-    - max_steps
-    - timeout
-    - side_effect_mode
-  optional:
-    - session_ref
-    - evidence_level
-    - download_policy
-    - upload_policy
+  required: [goal, allowed_origins, max_steps, timeout, side_effect_mode]
+  optional: [session_ref, evidence_level, download_policy, upload_policy]
   forbidden:
     - provider
     - adapter
@@ -67,13 +56,7 @@ inputs:
 outputs:
   contract: CapabilityResult v1
   candidate_data_contract: browser-task-result.v1
-  fields:
-    - status
-    - action_ledger
-    - evidence_refs
-    - normalized_result
-    - warnings
-    - provenance
+  fields: [status, action_ledger, evidence_refs, normalized_result, warnings, provenance]
 
 permissions:
   allowed_origins_required: true
@@ -89,13 +72,7 @@ side_effect_policy:
     subject_to_identity_policy: true
   external_write:
     approval_or_domain_policy_interlock_required: true
-    examples:
-      - submit
-      - send
-      - purchase
-      - publish
-      - delete
-      - change_configuration
+    examples: [submit, send, purchase, publish, delete, change_configuration]
   external_platform_terms:
     modeled_as_external_gate_or_policy_constraint: true
     human_approval_can_override: false
@@ -111,6 +88,7 @@ fallback_policy: none
 validation:
   evidence: []
   required_scenarios:
+    - capability_and_skill_identity_are_distinct
     - disallowed_origin_is_rejected
     - max_steps_is_enforced
     - timeout_is_enforced
