@@ -1,0 +1,132 @@
+# Provider Binding Contract — firecrawl.web.search
+id: firecrawl.web.search
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Implement the provider-agnostic web.search capability through a governed
+  Firecrawl adapter while keeping provider choice, credentials, raw endpoints,
+  crawl controls and retry behavior outside caller authority.
+
+capability:
+  name: web.search
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  domain_input_schema_ref: Ginkgo-Core/ai-stack/contracts/agentic-foundation/web-search.v1.schema.json
+  caller_selects: [capability.name, capability.contract_version, input]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: firecrawl.web.search
+  skill_version: 0.1.0
+  adapter_id: firecrawl
+  provider: firecrawl
+  transport: https_api
+  source_repo: firecrawl/firecrawl
+  internal_routing_metadata: true
+
+use_when:
+  - web_discovery_required
+  - fresh_public_web_sources_required
+  - normalized_search_results_required
+
+avoid_when:
+  - interactive_browser_session_required
+  - authenticated_ui_operation_required
+  - caller_requests_provider_specific_endpoint
+
+inputs:
+  required:
+    - query
+  optional:
+    - limit
+    - language
+    - country
+    - freshness
+    - include_domains
+    - exclude_domains
+  forbidden:
+    - provider
+    - adapter
+    - endpoint
+    - api_key
+    - credential
+    - proxy
+    - raw_retry_policy
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: web-search-result.v1
+  fields:
+    - results
+    - title
+    - url
+    - snippet
+    - content
+    - published_at
+    - provenance
+
+permissions:
+  external_network: true
+  public_web_read: true
+  browser_control: false
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: [FIRECRAWL_API_KEY]
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates:
+  - id: firecrawl-provider-validation
+    status: BLOCKED
+
+execution_mode: autonomous
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  reason: firecrawl_adapter_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "firecrawl/firecrawl README documents Search/Scrape/Crawl/Map/Batch surfaces and agent-ready API access"
+    - "Ginkgo-Core/ai-stack architecture/agentic-foundation-integration.md defines Firecrawl as web-data provider candidate, not browser executor"
+  blockers:
+    - adapter_not_implemented
+    - domain_contract_tests_missing
+    - normalized_error_tests_missing
+    - rate_limit_retry_evidence_missing
+    - license_security_review_missing
+    - governed_read_only_e2e_missing
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_adapter
+    - deterministic_contract_tests
+    - negative_input_tests
+    - normalized_errors
+    - retry_and_rate_limit_policy
+    - secret_scan
+    - license_review
+    - governed_read_only_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: web
