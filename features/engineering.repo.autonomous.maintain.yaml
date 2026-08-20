@@ -1,0 +1,129 @@
+# Internal Agent Workflow Candidate — engineering.repo.autonomous.maintain
+id: engineering.repo.autonomous.maintain
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L3
+autonomy_level: A3
+status: feature
+priority: P2
+
+purpose: >
+  Operate a bounded repository-maintenance task from a human directive through
+  planning, implementation, verification, review, retry and Draft-PR handoff while
+  keeping irreversible, security-sensitive and production authority external.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - repository_has_explicit_agent_managed_scope
+  - human_or_authorized_taskops_directive_exists
+  - repository_policy_defines_safe_write_boundary
+  - test_and_review_feedback_loops_exist
+
+human_interface:
+  candidates: [whatsapp, discord, slack, web_ui, github]
+  role: direction_and_governed_decisions
+  system_of_record: false
+
+canonical_flow:
+  - ingest_directive_into_TaskOps
+  - pin_repository_base_and_policy
+  - build_plan_and_dependency_graph
+  - dispatch_bounded_subagent_tasks
+  - run_per_task_feedback_loops
+  - run_spec_review_then_quality_review
+  - reconcile_disagreements_and_bounded_retries
+  - run_final_verification_on_combined_branch_state
+  - prepare_draft_pr_or_handoff_when_policy_allows
+  - deliver_normalized_status_through_engineering_event_route
+
+required_dependencies:
+  - engineering.verification.plan
+  - engineering.subagent.execute
+  - engineering.pr.audit
+  - engineering.event.route
+  - engineering.skill.security.scan
+
+state_authority:
+  operational_work: TaskOps_PostgreSQL
+  repository_state: GitHub
+  transient_coordination: Redis_allowed_ephemeral_only
+  chat_channel: interface_only
+
+bounded_autonomy:
+  repository_branch_write: candidate
+  commit: candidate
+  push_feature_branch: candidate
+  open_draft_pr: candidate
+  merge: false
+  mark_ready: false
+  release: false
+  deploy: false
+  production_data_write: false
+  secret_rotation: false
+  policy_mutation: false
+  lifecycle_promotion: false
+
+hard_stops:
+  - destructive_or_irreversible_action_outside_preapproved_scope
+  - security_sensitive_permission_change
+  - production_side_effect
+  - secret_or_credential_material_required
+  - plan_is_fundamentally_invalid
+  - retry_circuit_breaker_open
+  - repository_policy_or_external_gate_blocks_action
+
+retry_and_recovery:
+  retries_are_failure_class_specific: true
+  repeated_identical_attempt_without_new_information: forbidden
+  circuit_breakers_required: true
+  final_unresolved_state: BLOCKED_with_evidence
+
+outputs:
+  type: autonomous_repo_operation_handoff
+  required_sections:
+    - task_id
+    - pinned_base
+    - plan_and_dependency_graph
+    - execution_ledger
+    - commits_or_draft_pr_refs
+    - verification_evidence
+    - review_findings
+    - retries_and_rulings
+    - residual_risk
+    - blocked_actions_requiring_human_or_policy_decision
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+  limitations:
+    - no autonomous repo runtime
+    - no chat gateway integration
+    - no TaskOps implementation in this feature
+    - no branch-write sandbox evidence
+    - no draft-PR policy implementation
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - synthetic_repository_end_to_end_fixture
+    - concurrent_agent_conflict_fixture
+    - failing_ci_recovery_fixture
+    - malicious_instruction_fixture
+    - secret_required_hard_stop_fixture
+    - destructive_action_hard_stop_fixture
+    - draft_pr_only_authority_test
+    - circuit_breaker_fixture
+    - final_combined_state_verification
+    - reviewer_approval
+
+owner_domain: engineering
