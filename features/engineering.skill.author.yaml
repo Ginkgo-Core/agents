@@ -1,0 +1,105 @@
+# Internal Agent Workflow Candidate — engineering.skill.author
+id: engineering.skill.author
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1
+
+purpose: >
+  Turn a proven recurring behavior gap or reference need into a minimal,
+  provenance-backed, lintable Agent Skill package without granting runtime or
+  production authority.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - repeated_behavior_gap_has_evidence
+  - reusable_reference_requires_agent_discovery
+  - existing_skill_requires_behavior_changing_revision
+
+workflow_phases:
+  - inventory_existing_skills_and_rules_for_duplicates
+  - classify_candidate_as_behavior_technique_pattern_reference_or_router
+  - record_source_provenance_and_license_decision
+  - define_invocation_mode_and_trigger_only_metadata
+  - define_minimal_skill_body_and_progressive_disclosure_refs
+  - declare_permissions_side_effects_context_budget_and_lifecycle
+  - lint_package_against_canonical_contract
+  - handoff_to_engineering_skill_eval
+
+package_rules:
+  entrypoint: SKILL.md
+  optional_resources:
+    - scripts
+    - references
+    - templates
+    - fixtures
+  metadata:
+    stable_id_required: true
+    version_required: true
+    description_is_trigger_pointer: true
+    workflow_summary_in_description: discouraged
+    provenance_required: true
+    license_decision_required: true
+    invocation_mode_required: true
+    lifecycle_required: true
+    permissions_required: true
+    eval_refs_required_before_promotion: true
+
+context_rules:
+  progressive_disclosure: required_for_branch_specific_heavy_reference
+  always_loaded_pointer_budget: must_be_declared
+  duplicated_instruction_meaning: reject_or_justify
+  environment_restatement: avoid_when_source_is_cheap_to_query
+
+side_effect_authority:
+  repository_write: proposal_only
+  runtime_install: false
+  merge: false
+  deploy: false
+  release: false
+  production_skill_mutation: false
+  lifecycle_promotion: false
+
+outputs:
+  type: skill_candidate_package
+  required_sections:
+    - package_manifest
+    - SKILL.md_candidate
+    - provenance_record
+    - license_decision
+    - invocation_policy
+    - context_budget
+    - eval_handoff
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+  limitations:
+    - no canonical Ginkgo package schema validated yet
+    - no Ginkgo linter implementation
+    - no behavioral eval evidence
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - canonical_package_schema
+    - package_linter
+    - duplicate_detection_fixture
+    - provenance_license_fixture
+    - context_pointer_fixture
+    - engineering_skill_eval_integration
+    - reviewer_approval
+
+owner_domain: engineering
