@@ -1,0 +1,119 @@
+# Provider Binding Contract — markitdown.knowledge.document.convert
+id: markitdown.knowledge.document.convert
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Convert supported documents and media into normalized Markdown for downstream
+  knowledge ingestion through a local MarkItDown adapter. The binding is for
+  structural conversion, not high-fidelity rendering or unrestricted URL fetch.
+
+capability:
+  name: knowledge.document.convert
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  domain_input_schema_ref: Ginkgo-Core/ai-stack/contracts/agentic-foundation/document-convert.v1.schema.json
+  caller_selects: [capability.name, capability.contract_version, input]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: markitdown.knowledge.document.convert
+  skill_version: 0.1.0
+  adapter_id: markitdown
+  provider: local-markitdown
+  transport: local_process
+  source_repo: microsoft/markitdown
+  internal_routing_metadata: true
+
+use_when:
+  - document_to_markdown_required
+  - knowledge_ingestion_normalization_required
+  - document_structure_should_be_preserved_as_markdown
+
+avoid_when:
+  - scanned_or_complex_visual_document_requires_ocr_first
+  - pixel_faithful_document_rendering_required
+  - unsupported_or_untrusted_remote_resource_requires_fetch
+
+inputs:
+  required:
+    - source_ref
+  optional:
+    - media_type
+    - conversion_options
+    - max_bytes
+  forbidden:
+    - arbitrary_filesystem_path
+    - executable_command
+    - plugin_install_command
+    - credential
+    - raw_network_target_override
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: document-convert-result.v1
+  fields:
+    - markdown
+    - detected_media_type
+    - metadata
+    - warnings
+    - provenance
+
+permissions:
+  external_network: false_by_default
+  filesystem_read: scoped_source_only
+  filesystem_write: artifacts_only
+  shell: false
+  secrets: none
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous_local
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  reason: markitdown_adapter_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "microsoft/markitdown README documents conversion of PDF, PPTX, DOCX, XLSX, images, audio, HTML, text formats, ZIP and EPUB to Markdown"
+    - "MarkItDown security guidance states I/O occurs with process privileges, requiring scoped source access in Ginkgo"
+  blockers:
+    - local_adapter_not_implemented
+    - source_scope_enforcement_missing
+    - fixture_corpus_missing
+    - malformed_input_tests_missing
+    - output_normalization_tests_missing
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - scoped_source_resolver
+    - deterministic_fixture_corpus
+    - format_matrix_tests
+    - malformed_input_tests
+    - max_size_enforcement
+    - provenance_capture
+    - secret_scan
+    - governed_local_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: knowledge

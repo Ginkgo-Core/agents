@@ -1,0 +1,246 @@
+# Agentic Foundation Capability Pack
+# Curated from external OSS sources. This is architecture metadata only.
+id: agentic-foundation-pack
+version: 0.1.0
+kind: feature_pack
+lifecycle_status: FEATURE
+maturity: F0
+routing_eligible: false
+live_execution: blocked
+
+purpose: >
+  Define the next caller-agnostic capability families for engineering agents,
+  web operations, document ingestion, knowledge graphs, memory continuity,
+  provider discovery and global intelligence without coupling callers to any
+  external project, provider, tool, model, endpoint or credential.
+
+architecture_contract:
+  canonical_flow:
+    - Caller
+    - CapabilityRequest
+    - Capability Bus
+    - Domain Router
+    - skill/version
+    - adapter
+    - provider
+    - CapabilityResult
+  invariants:
+    - caller_selects_capability_not_provider
+    - public_capabilities_are_provider_agnostic
+    - provider_is_always_behind_adapter
+    - domain_router_is_not_executor_router
+    - fallback_default_is_none
+    - generic_fallback_requires_same_semantics_only
+    - approval_required_is_not_external_gate
+    - feature_metadata_does_not_imply_runtime_availability
+
+feature_families:
+  engineering:
+    purpose: software_engineering_methodology_as_caller_agnostic_skills
+    source_patterns:
+      - https://github.com/affaan-m/ECC
+      - https://github.com/garrytan/gstack
+    proposed_capabilities:
+      - engineering.plan
+      - engineering.architecture.review
+      - engineering.code.review
+      - engineering.security.audit
+      - engineering.qa
+      - engineering.investigate
+      - engineering.release.validate
+      - engineering.retro
+      - engineering.freeze
+      - engineering.devex.review
+    provider_binding: none
+    executor_candidates: [codex, claude-code, opencode, hermes, openclaw]
+    note: >
+      ECC and gstack are methodology/pattern sources. They are not promoted as
+      runtime providers and must not become a hidden caller-controlled executor.
+
+  web_operations:
+    purpose: search_extract_and_operate_the_web_with_separate_semantics
+    source_projects:
+      - https://github.com/firecrawl/firecrawl
+      - https://github.com/microsoft/playwright
+      - https://github.com/puppeteer/puppeteer
+    proposed_capabilities:
+      - web.search
+      - web.extract
+      - web.crawl
+      - web.map
+      - web.batch_extract
+      - browser.navigate
+      - browser.read
+      - browser.interact
+      - browser.form.fill
+      - browser.download
+      - browser.screenshot
+      - browser.session.execute
+    provider_candidates:
+      firecrawl:
+        semantic_role: web_content_provider
+        adapter_required: firecrawl-adapter
+      playwright:
+        semantic_role: browser_operation_tool
+        adapter_required: playwright-adapter
+      puppeteer:
+        semantic_role: alternate_browser_implementation
+        adapter_required: puppeteer-adapter
+    routing_policy:
+      web_information: prefer_content_extraction_semantics
+      ui_operation: require_browser_operation_semantics
+      cross_semantics_fallback: forbidden
+
+  document_ingestion:
+    purpose: normalize_files_and_visual_documents_into_llm_ready_structures
+    source_projects:
+      - https://github.com/microsoft/markitdown
+      - https://github.com/PaddlePaddle/PaddleOCR
+    proposed_capabilities:
+      - knowledge.document.convert
+      - document.ocr
+      - document.structure.extract
+    provider_candidates:
+      markitdown:
+        adapter_required: markitdown-adapter
+        intended_semantics: format_to_markdown_normalization
+      paddleocr:
+        adapter_required: paddleocr-adapter
+        intended_semantics: ocr_layout_table_formula_and_document_parsing
+    composition:
+      default_pipeline:
+        - knowledge.document.convert
+        - document.ocr_when_required
+        - document.structure.extract_when_required
+        - provenance_attach
+        - knowledge_index
+
+  knowledge_graph:
+    purpose: represent_entities_relations_paths_and_explainable_connections
+    source_projects:
+      - https://github.com/Graphify-Labs/graphify
+      - https://github.com/infiniflow/ragflow
+    proposed_capabilities:
+      - knowledge.graph.build
+      - knowledge.graph.query
+      - knowledge.graph.path
+      - knowledge.graph.explain
+    provider_candidates:
+      graphify:
+        adapter_required: graphify-adapter
+        intended_semantics: local_first_graph_construction_and_traversal
+      ragflow:
+        role: benchmark_candidate
+        note: evaluate_context_engine_before_any_runtime_adoption
+    design_rule: graph_retrieval_complements_vector_retrieval_not_replaces_it
+
+  memory_continuity:
+    purpose: retain_scoped_agent_observations_across_sessions_with_governance
+    source_patterns:
+      - https://github.com/thedotmack/claude-mem
+    proposed_capabilities:
+      - memory.observe
+      - memory.compress
+      - memory.retrieve
+      - memory.promote
+      - memory.forget
+      - memory.timeline.read
+    provider_binding: none
+    required_controls:
+      - identity_scope
+      - tenant_scope
+      - sensitivity_classification
+      - provenance
+      - retention_policy
+      - explicit_forget
+      - promotion_gate
+    note: extract_patterns_not_vendor_specific_memory_contracts
+
+  provider_discovery:
+    purpose: discover_candidate_integrations_without_auto_promoting_them
+    source_catalogs:
+      - https://github.com/punkpeye/awesome-mcp-servers
+      - https://github.com/public-apis/public-apis
+      - https://github.com/vinta/awesome-python
+    proposed_capabilities:
+      - integration.catalog.search
+      - integration.candidate.inspect
+      - integration.candidate.score
+    output_semantics: metadata_only
+    forbidden_side_effects:
+      - auto_install
+      - auto_enable
+      - auto_route
+      - credential_request
+
+  global_intelligence:
+    purpose: expose_attributed_external_situational_intelligence
+    source_projects:
+      - https://github.com/koala73/worldmonitor
+    proposed_capabilities:
+      - intelligence.events.search
+      - intelligence.country.risk.read
+      - intelligence.geopolitics.read
+      - intelligence.market.risk.read
+      - intelligence.infrastructure.read
+      - intelligence.energy.read
+    provider_candidates:
+      worldmonitor:
+        adapter_required: worldmonitor-adapter
+        access_surfaces: [rest, mcp, sdk]
+        license_review_required: true
+    provenance_required: true
+
+research_only_sources:
+  agent_frameworks:
+    - https://github.com/microsoft/semantic-kernel
+    - https://github.com/langchain-ai/langchain
+    - https://github.com/datawhalechina/hello-agents
+  operator_platforms:
+    - https://github.com/open-webui/open-webui
+    - https://github.com/lobehub/lobehub
+    - https://github.com/langflow-ai/langflow
+    - https://github.com/langgenius/dify
+  engineering_knowledge:
+    - https://github.com/gin-gonic/gin
+    - https://github.com/fighting41love/funNLP
+    - https://github.com/0xAX/linux-insides
+    - https://github.com/dair-ai/Prompt-Engineering-Guide
+    - https://github.com/trimstray/the-book-of-secret-knowledge
+    - https://github.com/x1xhlol/system-prompts-and-models-of-ai-tools
+  workstation_agentops:
+    - https://github.com/farion1231/cc-switch
+  executor_candidate:
+    - https://github.com/earendil-works/pi
+
+validation:
+  current_state: architecture_curated_only
+  evidence_type: upstream_repository_review
+  runtime_tests: false
+  live_api_calls: false
+  secrets_used: false
+  blockers:
+    - capability_schemas_not_individually_frozen
+    - adapters_not_implemented
+    - provider_contract_tests_missing
+    - policy_and_security_reviews_missing
+    - license_reviews_incomplete
+    - no_governed_read_only_e2e_evidence
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - individual_capability_contract
+    - adapter_contract
+    - normalized_result_schema
+    - normalized_error_schema
+    - permission_manifest
+    - policy_review
+    - license_review
+    - deterministic_contract_tests
+    - secret_scan
+    - governed_e2e_evidence
+    - reviewer_approval
+
+owner_domain: platform
