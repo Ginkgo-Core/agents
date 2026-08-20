@@ -1,0 +1,123 @@
+# Provider Binding Contract — graphify.knowledge.graph.query
+id: graphify.knowledge.graph.query
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Query an existing knowledge graph through a local Graphify adapter using a
+  provider-agnostic knowledge.graph.query capability. The binding returns scoped
+  graph evidence and preserves the distinction between extracted and inferred edges.
+
+capability:
+  name: knowledge.graph.query
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  domain_input_schema_ref: Ginkgo-Core/ai-stack/contracts/agentic-foundation/knowledge-graph-query.v1.schema.json
+  caller_selects: [capability.name, capability.contract_version, input]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: graphify.knowledge.graph.query
+  skill_version: 0.1.0
+  adapter_id: graphify
+  provider: local-graphify
+  transport: local_cli_or_library
+  source_repo: Graphify-Labs/graphify
+  internal_routing_metadata: true
+
+use_when:
+  - relationship_or_path_context_required
+  - graph_scoped_question_required
+  - provenance_of_edges_required
+
+avoid_when:
+  - semantic_similarity_only_retrieval_is_sufficient
+  - graph_has_not_been_built_or_is_stale
+  - caller_requests_unbounded_filesystem_scan
+
+inputs:
+  required:
+    - graph_ref
+    - query
+  optional:
+    - max_nodes
+    - max_edges
+    - community_filter
+    - include_inferred
+  forbidden:
+    - arbitrary_graph_path
+    - executable_command
+    - raw_filesystem_root
+    - provider
+    - adapter
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: knowledge-graph-query-result.v1
+  fields:
+    - nodes
+    - edges
+    - paths
+    - communities
+    - extracted_vs_inferred
+    - source_refs
+    - confidence
+    - provenance
+
+permissions:
+  external_network: false_by_default
+  filesystem_read: scoped_graph_artifact_only
+  filesystem_write: none
+  shell: false
+  secrets: none
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous_local
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  reason: graphify_adapter_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "Graphify-Labs/graphify documents local graph construction/query and explicit EXTRACTED vs INFERRED edge labels"
+    - "Ginkgo Knowledge Plane treats graph traversal as complementary to vector retrieval, not a replacement"
+  blockers:
+    - local_adapter_not_implemented
+    - graph_artifact_contract_missing
+    - stale_graph_policy_missing
+    - extracted_inferred_preservation_tests_missing
+    - query_limit_tests_missing
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - graph_artifact_schema
+    - scoped_graph_resolver
+    - stale_graph_policy
+    - extracted_inferred_preservation_tests
+    - query_limit_enforcement
+    - deterministic_graph_fixtures
+    - governed_local_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: knowledge_graph
