@@ -1,0 +1,121 @@
+# Internal Agent Workflow Candidate — engineering.event.route
+id: engineering.event.route
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P2
+
+purpose: >
+  Normalize repository, CI, task and agent lifecycle events and route concise
+  notifications outside implementation-agent context so workers remain focused on
+  execution while TaskOps and audit retain authoritative state.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - long_running_agent_work_requires_status_delivery
+  - multiple_agents_emit_lifecycle_events
+  - ci_or_repository_events_must_reach_humans_or_controllers
+  - status_formatting_would_pollute_worker_context
+
+event_classes:
+  - task_created
+  - task_started
+  - task_blocked
+  - task_completed
+  - agent_started
+  - agent_waiting
+  - agent_failed
+  - agent_completed
+  - review_requested
+  - review_failed
+  - review_passed
+  - retry_scheduled
+  - circuit_breaker_opened
+  - commit_created
+  - pr_opened
+  - ci_started
+  - ci_failed
+  - ci_passed
+
+architecture_boundary:
+  task_state_source: TaskOps_PostgreSQL
+  event_delivery_source_of_truth: not_the_worker_context
+  redis_role: ephemeral_queue_or_coordination_only
+  github_role: repository_and_ci_evidence_source
+  notification_channel_role: interface_only
+
+routing_rules:
+  normalize_before_delivery: true
+  correlation_id_required: true
+  task_id_required_when_task_scoped: true
+  execution_id_required_when_execution_scoped: true
+  severity_and_event_type_required: true
+  raw_secret_material_in_event: forbidden
+  duplicate_delivery_should_be_idempotent: true
+  worker_context_reinjection: only_when_event_changes_execution_decision
+
+channels:
+  candidates:
+    - whatsapp
+    - discord
+    - slack
+    - github
+    - dashboard
+  system_of_record: false
+
+side_effect_authority:
+  repository_write: false
+  task_state_mutation: false
+  notification_delivery: candidate
+  production_business_mutation: false
+  secret_access: false
+  merge: false
+  deploy: false
+  release: false
+
+outputs:
+  type: normalized_agent_event
+  required_sections:
+    - event_id
+    - event_type
+    - occurred_at
+    - correlation_id
+    - task_or_execution_ref
+    - severity
+    - evidence_refs
+    - concise_payload
+    - delivery_targets
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+  limitations:
+    - no event router runtime
+    - no channel adapters
+    - no idempotency store
+    - no delivery benchmark
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - duplicate_event_fixture
+    - out_of_order_event_fixture
+    - secret_redaction_fixture
+    - worker_context_pollution_benchmark
+    - taskops_state_authority_test
+    - channel_failure_fixture
+    - reviewer_approval
+
+owner_domain: engineering
