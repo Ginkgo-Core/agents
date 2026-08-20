@@ -1,0 +1,169 @@
+# Candidate provider bindings derived from the Agentic Foundation curation.
+# None of these entries is a validated production binding.
+version: 0.1.0
+kind: provider_candidate_registry
+lifecycle_status: FEATURE
+routing_eligible: false
+
+candidates:
+  - capability: web.search
+    skill_id: web.search
+    adapter_id: firecrawl
+    provider: firecrawl
+    source: https://github.com/firecrawl/firecrawl
+    semantics: search_the_web_and_return_normalized_sources
+    network: external
+    mutation: none
+    fallback_policy: none
+
+  - capability: web.extract
+    skill_id: web.extract
+    adapter_id: firecrawl
+    provider: firecrawl
+    source: https://github.com/firecrawl/firecrawl
+    semantics: extract_url_content_to_normalized_markdown_or_structured_data
+    network: external
+    mutation: none
+    fallback_policy: none
+
+  - capability: web.crawl
+    skill_id: web.crawl
+    adapter_id: firecrawl
+    provider: firecrawl
+    source: https://github.com/firecrawl/firecrawl
+    semantics: bounded_multi_page_site_collection
+    network: external
+    mutation: none
+    fallback_policy: none
+
+  - capability: browser.session.execute
+    skill_id: browser.session.execute
+    adapter_id: playwright
+    provider: microsoft-playwright
+    source: https://github.com/microsoft/playwright
+    semantics: execute_bounded_browser_operations_against_a_ui_session
+    network: external
+    mutation: possible_external_side_effect
+    approval_policy: operation_dependent
+    fallback_policy: none
+
+  - capability: knowledge.document.convert
+    skill_id: knowledge.document.convert
+    adapter_id: markitdown
+    provider: local-markitdown
+    source: https://github.com/microsoft/markitdown
+    semantics: convert_supported_document_formats_to_llm_ready_markdown
+    network: none_by_default
+    mutation: local_artifact_only
+    fallback_policy: none
+
+  - capability: document.ocr
+    skill_id: document.ocr
+    adapter_id: paddleocr
+    provider: local-paddleocr
+    source: https://github.com/PaddlePaddle/PaddleOCR
+    semantics: extract_text_and_layout_from_images_or_documents
+    network: none_by_default
+    mutation: local_artifact_only
+    fallback_policy: none
+
+  - capability: document.structure.extract
+    skill_id: document.structure.extract
+    adapter_id: paddleocr
+    provider: local-paddleocr
+    source: https://github.com/PaddlePaddle/PaddleOCR
+    semantics: recover_tables_formulas_layout_and_document_structure
+    network: none_by_default
+    mutation: local_artifact_only
+    fallback_policy: none
+
+  - capability: knowledge.graph.build
+    skill_id: knowledge.graph.build
+    adapter_id: graphify
+    provider: local-graphify
+    source: https://github.com/Graphify-Labs/graphify
+    semantics: construct_explainable_entity_relation_graph_from_bounded_sources
+    network: conditional
+    mutation: local_knowledge_artifact
+    fallback_policy: none
+
+  - capability: knowledge.graph.query
+    skill_id: knowledge.graph.query
+    adapter_id: graphify
+    provider: local-graphify
+    source: https://github.com/Graphify-Labs/graphify
+    semantics: query_an_existing_graph_and_return_paths_entities_and_evidence
+    network: none_by_default
+    mutation: none
+    fallback_policy: none
+
+  - capability: knowledge.graph.path
+    skill_id: knowledge.graph.path
+    adapter_id: graphify
+    provider: local-graphify
+    source: https://github.com/Graphify-Labs/graphify
+    semantics: resolve_an_explainable_path_between_graph_entities
+    network: none_by_default
+    mutation: none
+    fallback_policy: none
+
+  - capability: intelligence.events.search
+    skill_id: intelligence.events.search
+    adapter_id: worldmonitor
+    provider: worldmonitor
+    source: https://github.com/koala73/worldmonitor
+    semantics: search_attributed_situational_intelligence_events
+    network: external
+    mutation: none
+    provenance_required: true
+    license_review_required: true
+    fallback_policy: none
+
+  - capability: intelligence.country.risk.read
+    skill_id: intelligence.country.risk.read
+    adapter_id: worldmonitor
+    provider: worldmonitor
+    source: https://github.com/koala73/worldmonitor
+    semantics: read_attributed_country_risk_signals
+    network: external
+    mutation: none
+    provenance_required: true
+    license_review_required: true
+    fallback_policy: none
+
+alternate_implementations:
+  browser:
+    - adapter_id: puppeteer
+      provider: google-puppeteer-project
+      source: https://github.com/puppeteer/puppeteer
+      status: REFERENCE_ONLY
+      rule: do_not_enable_as_silent_playwright_fallback
+
+benchmark_only:
+  - source: https://github.com/infiniflow/ragflow
+    target: knowledge_context_engine
+  - source: https://github.com/langgenius/dify
+    target: ai_application_platform
+  - source: https://github.com/langflow-ai/langflow
+    target: visual_agent_workflow
+  - source: https://github.com/open-webui/open-webui
+    target: operator_console
+  - source: https://github.com/lobehub/lobehub
+    target: multi_agent_operator_experience
+  - source: https://github.com/earendil-works/pi
+    target: executor_harness
+
+promotion_requirements:
+  - adapter_implementation
+  - typed_input_schema
+  - normalized_result_schema
+  - normalized_error_schema
+  - permission_manifest
+  - policy_review
+  - license_review
+  - contract_tests
+  - negative_tests
+  - secret_scan
+  - governed_read_only_e2e_where_applicable
+  - github_evidence
+  - reviewer_approval
