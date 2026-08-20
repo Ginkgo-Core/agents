@@ -1,0 +1,128 @@
+# Provider Binding Contract — paddleocr.document.structure.extract
+id: paddleocr.document.structure.extract
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+status: feature
+
+purpose: >
+  Extract structured document content from images and document pages through a
+  local PaddleOCR adapter, producing normalized text/layout/table/formula
+  artifacts for the Knowledge Plane without exposing model/backend selection to callers.
+
+capability:
+  name: document.structure.extract
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  domain_input_schema_ref: Ginkgo-Core/ai-stack/contracts/agentic-foundation/document-structure-extract.v1.schema.json
+  caller_selects: [capability.name, capability.contract_version, input]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: paddleocr.document.structure.extract
+  skill_version: 0.1.0
+  adapter_id: paddleocr
+  provider: local-paddleocr
+  transport: local_inference
+  source_repo: PaddlePaddle/PaddleOCR
+  internal_routing_metadata: true
+
+use_when:
+  - scanned_document_requires_ocr
+  - tables_or_layout_need_structure_extraction
+  - image_text_or_formula_extraction_required
+
+avoid_when:
+  - text_native_document_conversion_is_sufficient
+  - caller_requires_raw_model_selection
+  - unsupported_sensitive_document_policy
+
+inputs:
+  required:
+    - source_ref
+  optional:
+    - language_hint
+    - page_range
+    - output_detail
+    - max_pages
+    - max_pixels
+  forbidden:
+    - model
+    - backend
+    - executable_command
+    - arbitrary_filesystem_path
+    - credential
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: document-structure-result.v1
+  fields:
+    - text
+    - markdown
+    - blocks
+    - tables
+    - formulas
+    - coordinates
+    - confidence
+    - warnings
+    - provenance
+
+permissions:
+  external_network: false
+  filesystem_read: scoped_source_only
+  filesystem_write: artifacts_only
+  shell: false
+  gpu: optional_policy_managed
+  secrets: none
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+execution_mode: autonomous_local
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  reason: paddleocr_adapter_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence:
+    - "PaddlePaddle/PaddleOCR documents structured Markdown/JSON outputs, multilingual OCR, layout/table/formula extraction and local inference"
+    - "Ginkgo architecture positions PaddleOCR after or instead of structural conversion when visual parsing is required"
+  blockers:
+    - local_adapter_not_implemented
+    - model_artifact_pin_missing
+    - fixture_corpus_missing
+    - resource_limits_missing
+    - multilingual_contract_tests_missing
+    - provenance_tests_missing
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - pinned_model_artifacts
+    - checksum_or_supply_chain_policy
+    - resource_limits
+    - deterministic_fixture_corpus
+    - table_formula_layout_tests
+    - multilingual_tests
+    - malformed_media_tests
+    - provenance_capture
+    - governed_local_e2e
+    - evidence_registered_in_github
+    - reviewer_approval
+
+owner_domain: document
