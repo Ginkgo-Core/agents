@@ -1,0 +1,130 @@
+# Internal Agent Workflow Candidate — engineering.skill.eval
+id: engineering.skill.eval
+version: 0.1.0
+kind: internal_agent_workflow_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: feature
+priority: P1
+
+purpose: >
+  Evaluate whether an agent skill changes or preserves observable behavior as
+  intended using baseline, application, retrieval, pressure, adversarial and
+  regression scenarios with immutable evidence.
+
+capability: null
+invocation_boundary: internal_agent_workflow
+
+use_when:
+  - new_skill_candidate_requires_validation
+  - behavior_changing_skill_edit_requires_regression_evidence
+  - reference_skill_requires_retrieval_or_application_validation
+  - discipline_skill_requires_pressure_testing
+
+scenario_types:
+  - baseline
+  - retrieval
+  - application
+  - pressure
+  - adversarial
+  - regression
+
+behavioral_tdd:
+  behavior_enforcing_skill:
+    red: observe_and_record_undesired_behavior_without_skill
+    green: minimal_candidate_closes_demonstrated_gap
+    refactor: close_loopholes_without_regressing_prior_evals
+  reference_skill:
+    baseline_exception: allowed_with_explicit_justification
+    required_tests: [retrieval, application, gap_testing]
+
+observable_evidence_only:
+  allowed:
+    - final_outputs
+    - tool_actions
+    - repository_diffs
+    - test_results
+    - structured_verdicts
+    - timing_and_cost_metadata
+  prohibited_as_requirement:
+    - private_chain_of_thought
+    - hidden_reasoning_transcripts
+
+review_stages:
+  - id: spec_compliance
+    question: does_observed_behavior_satisfy_skill_and_eval_contract
+    independent_context_preferred: true
+  - id: quality_context
+    question: is_package_minimal_clear_safe_maintainable_and_context_efficient
+    independent_context_preferred: true
+
+pressure_dimensions:
+  - time_pressure
+  - sunk_cost
+  - request_to_skip_process
+  - conflicting_instructions_in_untrusted_artifacts
+  - partial_success
+  - stale_evidence
+  - context_compaction_or_missing_reference
+
+pass_requirements:
+  immutable_skill_commit: required
+  scenario_definition: required
+  expected_observable_behavior: required
+  evidence_refs: required
+  baseline_or_exception: required
+  no_unexplained_mutation: required
+  regression_suite: required_for_behavior_changing_edits
+
+side_effect_authority:
+  repository_write: false
+  merge: false
+  deploy: false
+  release: false
+  production_access: false
+  secret_access: false
+  lifecycle_promotion: false
+
+outputs:
+  type: skill_eval_report
+  required_sections:
+    - tested_skill_id_and_version
+    - tested_commit
+    - scenario_matrix
+    - baseline_evidence_or_exception
+    - results
+    - spec_review
+    - quality_context_review
+    - regressions
+    - residual_uncertainty
+    - promotion_recommendation
+
+routing:
+  routing_eligible: false
+  production_eligible: false
+  execution_scope: specification_only
+
+validation:
+  evidence:
+    - concept references pinned in engineering.agent-foundry.pack
+  limitations:
+    - no Ginkgo eval harness implementation
+    - no deterministic fixture corpus
+    - no cross-harness benchmark
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - canonical_skill_eval_schema
+    - fixture_format
+    - baseline_runner
+    - pressure_runner
+    - adversarial_runner
+    - regression_runner
+    - spec_and_quality_review_protocol
+    - reviewer_approval
+
+owner_domain: engineering
