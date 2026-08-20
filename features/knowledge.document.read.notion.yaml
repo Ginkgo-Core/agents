@@ -1,0 +1,45 @@
+id: notion-api.document.read
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+purpose: Implement provider-agnostic knowledge.document.read through the governed Notion workspace boundary.
+capability:
+  name: knowledge.document.read
+  contract_version: v1
+caller_contract:
+  request: CapabilityRequest v1
+  result: CapabilityResult v1
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+implementation_binding:
+  skill_id: notion-api.document.read
+  skill_version: 0.1.0
+  adapter_id: notion-api
+  provider: notion
+  internal_routing_metadata: true
+inputs:
+  required: [document_ref]
+  optional: [workspace_scope, include_children]
+  forbidden: [skill_id, skill_version, provider, adapter, endpoint, credential, secret, access_token]
+outputs:
+  contract: CapabilityResult v1
+  data_contract: knowledge-document.v1
+  fields: [document_ref, title, content, metadata, updated_at, provenance]
+permissions:
+  external_network: true
+  workspace_read: [pages, blocks, data_sources]
+  workspace_write: []
+  secrets: {caller_access: forbidden}
+approval: {required: false, status: NOT_REQUIRED}
+external_gates: []
+routing: {routing_eligible: false, live_execution: blocked, reason: notion_adapter_not_validated}
+fallback_policy: none
+validation:
+  blockers: [no_repository_backed_notion_adapter, no_contract_tests, no_governed_live_e2e]
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+owner_domain: knowledge

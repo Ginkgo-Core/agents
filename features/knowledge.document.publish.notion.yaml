@@ -1,0 +1,47 @@
+id: notion-api.document.publish
+version: 0.1.0
+kind: provider_binding
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A1
+purpose: Implement provider-agnostic knowledge.document.publish through a governed Notion write boundary.
+capability:
+  name: knowledge.document.publish
+  contract_version: v1
+caller_contract:
+  request: CapabilityRequest v1
+  result: CapabilityResult v1
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+implementation_binding:
+  skill_id: notion-api.document.publish
+  skill_version: 0.1.0
+  adapter_id: notion-api
+  provider: notion
+  internal_routing_metadata: true
+inputs:
+  required: [content, destination_ref]
+  optional: [title, parent_ref, properties, idempotency_key]
+  forbidden: [skill_id, skill_version, provider, adapter, endpoint, credential, secret, access_token]
+outputs:
+  contract: CapabilityResult v1
+  data_contract: knowledge-document-publish-result.v1
+  fields: [document_ref, created_or_updated, version_ref, provenance]
+permissions:
+  external_network: true
+  workspace_read: [pages, data_sources]
+  workspace_write: [pages]
+  secrets: {caller_access: forbidden}
+approval:
+  required: policy_dependent
+  status: POLICY_RESOLVED
+external_gates: []
+routing: {routing_eligible: false, live_execution: blocked, reason: notion_adapter_not_validated}
+fallback_policy: none
+validation:
+  blockers: [no_repository_backed_notion_adapter, no_write_contract_tests, no_reversible_governed_write_e2e]
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+owner_domain: knowledge
