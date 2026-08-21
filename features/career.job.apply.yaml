@@ -1,0 +1,329 @@
+# Agentic Feature Contract — career.job.apply
+id: career.job.apply
+version: 0.1.0
+kind: agentic_operational_workflow
+lifecycle_status: SPECIFIED
+maturity: F1
+level: L3
+autonomy_level: A3
+status: feature
+
+purpose: >
+  Transformar uma oportunidade de trabalho em uma candidatura personalizada,
+  grounded e auditável: analisar a vaga, confrontar requisitos com evidências do
+  perfil do candidato, preparar a mensagem e o plano de anexos, solicitar aprovação
+  humana para qualquer envio externo e, somente após aprovação explícita, submeter a
+  candidatura pelo canal elegível e retornar recibo/evidência. A skill nunca inventa
+  formação, experiência, idioma, certificações ou resultados do candidato.
+
+capability:
+  name: career.job.apply
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: career.job.apply
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+  deterministic_numeric_claims_only: true
+
+use_when:
+  - user_wants_to_evaluate_and_apply_to_a_specific_job
+  - job_description_or_recruiter_request_is_available
+  - candidate_sources_are_available_or_user_assertions_can_be_marked_as_unverified
+  - application_requires_tailoring_to_role_and_company
+
+avoid_when:
+  - user_requests_fabricated_credentials_or_experience
+  - recipient_or_application_destination_is_unknown_and_cannot_be_resolved
+  - required_candidate_claims_have_no_source_and_user_does_not_confirm_them
+  - requested_attachment_contains_high_risk_identity_data_without_specific_user_approval
+  - application_channel_requires unsupported_or_unapproved_external_mutation
+
+inputs:
+  required:
+    - request_id
+    - job_posting
+    - candidate_profile
+  optional:
+    - recruiter_contact
+    - application_channel
+    - resume_refs
+    - portfolio_refs
+    - document_refs
+    - user_asserted_facts
+    - preferred_language
+    - preferred_sender_identity
+    - user_notes
+    - constraints
+  forbidden:
+    - skill_id
+    - skill_version
+    - provider
+    - adapter
+    - tool
+    - model
+    - api_key
+    - oauth_token
+    - password
+    - auto_send_without_approval
+
+input_contracts:
+  job_posting:
+    accepted:
+      - raw_text
+      - structured_job_description
+      - public_url_reference
+    required_fields_after_normalization:
+      - role_title
+      - responsibilities
+      - mandatory_requirements
+      - differentiators
+      - application_instructions
+    provenance_required: true
+  candidate_profile:
+    accepted_sources:
+      - resume
+      - portfolio
+      - github
+      - linkedin
+      - user_asserted_profile
+      - approved_personal_context
+    claim_evidence_required: true
+    unsupported_claim_policy: mark_unverified_or_omit
+
+workflow:
+  stages:
+    - id: ingest_job
+      action: normalize_job_posting
+      side_effect: false
+    - id: extract_requirements
+      action: classify_mandatory_preferred_and_contextual_requirements
+      side_effect: false
+    - id: build_candidate_evidence
+      action: retrieve_and_normalize_candidate_facts_with_provenance
+      side_effect: false
+    - id: assess_fit
+      action: build_fit_matrix_and_identify_hard_gaps
+      side_effect: false
+    - id: position_candidate
+      action: choose_truthful_value_proposition_and_case_studies
+      side_effect: false
+    - id: draft_application
+      action: generate_tailored_message_subject_and_optional_followup
+      side_effect: false
+    - id: select_attachments
+      action: apply_data_minimization_and_attachment_policy
+      side_effect: false
+    - id: approval_packet
+      action: present_final_recipient_subject_body_and_attachments_for_human_approval
+      side_effect: false
+    - id: submit
+      action: send_via_eligible_communication_capability
+      side_effect: true
+      requires_approval: true
+    - id: evidence
+      action: return_send_receipt_audit_and_followup_recommendation
+      side_effect: false
+
+fit_assessment:
+  required_dimensions:
+    - mandatory_requirement_match
+    - technical_stack_match
+    - domain_experience_match
+    - delivery_and_prototyping_match
+    - language_match
+    - education_match
+    - location_or_work_model_match
+  hard_gap_policy:
+    - never_hide_mandatory_gap
+    - distinguish_formal_gap_from_practical_fit
+    - no_numeric_fit_score_without_explicit_scoring_rubric
+  evidence_policy:
+    each_positive_claim_requires_source: true
+    user_asserted_claims_must_be_labeled: true
+    contradictions_must_be_surfaced: true
+
+application_generation:
+  objectives:
+    - maximize_relevance_to_job_without_keyword_stuffing
+    - foreground_evidence_backed_strengths
+    - acknowledge_mandatory_gaps_once_without_overexplaining
+    - connect_candidate_projects_to_business_outcomes
+    - keep_message_human_readable_and_recruiter_friendly
+  prohibited:
+    - invented_degree
+    - invented_employer
+    - invented_years_of_experience
+    - inflated_language_proficiency
+    - fabricated_metrics
+    - fabricated_certifications
+    - undisclosed_identity_or_location_misrepresentation
+
+attachment_policy:
+  default_allow:
+    - resume
+    - portfolio
+    - non_sensitive_work_samples
+  default_deny:
+    - driver_license
+    - passport
+    - national_identity_document
+    - bank_statement
+    - payment_card
+    - tax_document_with_unnecessary_pii
+    - medical_document
+  high_risk_attachment_rule: >
+    High-risk identity or financial documents require a specific user request,
+    a concrete stated business need, explicit approval for that exact attachment,
+    and must never be added merely because the file is available.
+  data_minimization: true
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: career-job-application-result.v1
+  fields:
+    - normalized_job
+    - fit_matrix
+    - mandatory_gaps
+    - evidence_map
+    - positioning_summary
+    - application_subject
+    - application_body
+    - attachment_plan
+    - approval_required
+    - approval_packet
+    - submission_status
+    - send_receipt
+    - audit_evidence
+    - followup_plan
+
+side_effect_authority:
+  external_send: conditional_after_explicit_human_approval
+  create_draft: allowed_without_external_delivery
+  upload_application: conditional_after_explicit_human_approval
+  modify_resume_source: false
+  modify_candidate_profile: false
+  attach_high_risk_identity_document: specific_explicit_approval_only
+
+permissions:
+  external_network: conditional
+  email_read: read_only_when_needed_for_thread_context
+  email_write: approval_gated
+  file_read: candidate_authorized_sources_only
+  file_write: generated_application_artifacts_only
+  pii: personal_confidential
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: required_for_external_channel
+
+approval:
+  required: true
+  required_for:
+    - external_send
+    - application_form_submission
+    - high_risk_identity_document_attachment
+  not_required_for:
+    - job_analysis
+    - fit_assessment
+    - draft_generation
+    - attachment_recommendation
+  status: HUMAN_GATE_REQUIRED_FOR_EXTERNAL_MUTATION
+  rule: >
+    approval_required is a human authorization decision and is not equivalent to
+    an external gate or provider precondition.
+
+external_gates:
+  - sender_account_connected
+  - recipient_or_destination_resolved
+  - required_attachment_refs_accessible
+  - target_channel_available
+
+execution_mode: supervised_agentic
+routing:
+  routing_eligible: false
+  execution_scope: specification_and_eval_only
+  production_eligible: false
+  reason: feature_not_yet_prototyped_or_validated
+
+fallback_policy: none
+fallbacks:
+  cross_channel_automatic_fallback: false
+  rule: same_semantics_only_and_explicitly_governed_after_validation
+
+observability:
+  required_events:
+    - job_ingested
+    - requirements_extracted
+    - candidate_evidence_resolved
+    - fit_assessed
+    - draft_generated
+    - attachment_plan_generated
+    - approval_requested
+    - approval_granted_or_denied
+    - submission_attempted
+    - submission_succeeded_or_failed
+  redact:
+    - secrets
+    - government_id_numbers
+    - authentication_tokens
+    - unnecessary_pii
+
+error_namespace: career_job_apply_error
+errors:
+  - JOB_POSTING_INCOMPLETE
+  - CANDIDATE_EVIDENCE_MISSING
+  - CLAIM_CONFLICT
+  - RECIPIENT_UNRESOLVED
+  - APPROVAL_REQUIRED
+  - ATTACHMENT_BLOCKED_BY_POLICY
+  - CHANNEL_UNAVAILABLE
+  - SUBMISSION_FAILED
+  - UNSUPPORTED_APPLICATION_FLOW
+
+validation:
+  seed_evidence:
+    - >
+      2026-08-21 observational manual case: specific FDE Generative AI vacancy was
+      analyzed against an uploaded resume, a tailored truthful application was
+      produced, an unnecessary driver-license attachment was excluded under data
+      minimization, and the email was sent only after an explicit user send command.
+      This is seed evidence only and does not satisfy promotion requirements.
+  limitations:
+    - no reusable runtime_or_n8n_workflow exists yet
+    - no contract_test_suite exists yet
+    - no automated source_provenance validator exists yet
+    - no generalized email_adapter binding has been validated
+    - no application_form browser workflow has been validated
+    - only one manual case is available and manual success is insufficient for promotion
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: SPECIFIED
+  requires:
+    - implement_provider_neutral_workflow_or_runtime_binding
+    - contract_tests_for_job_and_candidate_normalization
+    - tests_that_mandatory_gaps_are_never_hidden
+    - tests_that_unsupported_candidate_claims_are_omitted_or_labeled
+    - tests_that_external_send_cannot_happen_without_human_approval
+    - tests_that_government_identity_documents_are_denied_by_default
+    - tests_for_secret_and_pii_redaction
+    - tests_for_recipient_resolution_and_invalid_destination
+    - tests_for_no_silent_cross_channel_fallback
+    - deterministic_error_normalization
+    - idempotency_strategy_for_submit_stage
+    - at_least_three_reproducible_e2e_cases_with_distinct_job_profiles
+    - reviewer_approval
+
+owner_domain: career
