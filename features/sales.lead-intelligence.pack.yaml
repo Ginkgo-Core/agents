@@ -1,8 +1,8 @@
 id: sales.lead-intelligence.pack
-version: 0.1.0
+version: 0.2.0
 kind: domain_skill_pack
-lifecycle_status: FEATURE
-maturity: F1
+lifecycle_status: PROTOTYPE
+maturity: F2
 level: L3
 autonomy_level: A3
 status: feature
@@ -160,11 +160,14 @@ source_policy:
 provider_candidates:
   firecrawl:
     role: web_discovery_and_enrichment_candidate
-    status: FEATURE
+    status: PROTOTYPE
     routing_eligible: false
+    implementation_ref: Ginkgo-Seeds/ginkgo-connect#6
     notes:
-      - use search/scrape/extract through a Ginkgo adapter
+      - fixture-backed read-only adapter prototype exists
+      - use search/scrape/extract only through a Ginkgo adapter
       - cloud and self-hosted postures require separate cost/license decisions
+      - no live provider E2E has been promoted as evidence yet
   ledger-lead-finder:
     role: legacy_optional_adapter_candidate
     status: OBSERVED_UNVERIFIED
@@ -303,45 +306,81 @@ fallback_policy:
   cross_source_without_equivalent_terms_and_evidence: forbidden
   downgrade_whatsapp_valid_to_phone_available: forbidden
 
+prototype_evidence:
+  implementation_repo: Ginkgo-Seeds/ginkgo-connect
+  implementation_pr: 6
+  validated_head: caab752c2170c34d1e4b669d5548b8535638900a
+  ci_run: 32527413782
+  ci_conclusion: SUCCESS
+  implementation_scope:
+    - deterministic_lead_quality_engine
+    - firecrawl_read_only_discovery_adapter
+    - source_policy_fail_closed_gate
+    - phone_whatsapp_state_separation
+    - evidence_backed_qualification
+    - deterministic_deduplication
+    - provenance_laundering_prevention
+    - raw_vs_accepted_target_semantics
+  tests:
+    lead_intelligence_core: 14/14
+    firecrawl_adapter: 5/5
+    core_package_total: 40/40
+    db_integration: 31/31
+  gates:
+    prettier: PASS
+    lint: PASS
+    typecheck: PASS
+    test: PASS
+    build: PASS
+    infrastructure_smoke: PASS
+  live_provider_call_performed: false
+  secrets_required: false
+  production_routing_enabled: false
+
 routing:
   routing_eligible: false
-  execution_scope: specification_eval_only
+  execution_scope: prototype_eval_only
   production_eligible: false
-  reason: feature_not_validated
+  reason: prototype_not_validated
 
 validation:
-  evidence: []
-  required_scenarios:
-    - two_hundred_raw_results_do_not_satisfy_two_hundred_accepted_target
+  evidence:
+    - Ginkgo-Seeds/ginkgo-connect#6
+    - commit:caab752c2170c34d1e4b669d5548b8535638900a
+    - actions-run:32527413782
+    - fixture:lead-intelligence-core-14-of-14
+    - fixture:firecrawl-adapter-5-of-5
+  satisfied_scenarios:
     - phone_available_does_not_mark_whatsapp_valid
     - wa_me_open_does_not_mark_whatsapp_valid
     - unknown_whatsapp_is_preserved
     - duplicate_across_queries_is_merged_once
-    - inferred_business_size_is_labeled
-    - low_score_candidate_is_rejected_by_default
-    - source_without_terms_decision_is_blocked
-    - caller_provider_injection_is_rejected
-    - anti_bot_bypass_request_is_rejected
-    - crm_write_requires_idempotency_key
-    - communication_side_effect_is_denied
-    - transaction_side_effect_is_denied
+    - source_without_terms_decision_is_blocked_before_transport
+    - blocked_provenance_is_not_laundered_by_deduplication
+    - low_or_unevidenced_candidate_is_not_artificially_promoted
+    - raw_results_do_not_satisfy_accepted_target
+  remaining_scenarios:
+    - two_hundred_accepted_lead_governed_e2e
+    - caller_provider_injection_is_rejected_at_runtime_boundary
+    - anti_bot_bypass_request_is_rejected_at_runtime_boundary
+    - crm_write_requires_idempotency_key_e2e
+    - communication_side_effect_is_denied_e2e
+    - transaction_side_effect_is_denied_e2e
     - provider_failure_does_not_trigger_cross_semantics_fallback
-    - report_reconciles_stage_counts
+    - report_reconciles_stage_counts_e2e
+    - cost_and_rate_limit_observability_e2e
 
 promotion:
   allowed: false
-  lifecycle_ceiling: FEATURE
+  lifecycle_ceiling: PROTOTYPE
+  next_target: F3_VALIDATED
   requires:
-    - typed_sales_lead_domain_contracts
-    - source_and_license_registry
-    - deterministic_fixture_tests
-    - source_policy_negative_tests
-    - deduplication_tests
-    - contact_validation_tests
-    - qualification_evals
-    - governed_read_only_e2e
+    - governed_read_only_firecrawl_e2e
+    - exact_source_terms_cost_retention_decision
+    - qualification_eval_matrix_completion
     - governed_persistence_e2e_with_idempotency
     - cost_and_rate_limit_observability
+    - two_hundred_accepted_lead_e2e
     - reviewer_approval
 
 owner_domain: sales
