@@ -1,0 +1,111 @@
+# Domain Skill Contract — finance.risk.evaluate
+id: finance.risk.evaluate
+version: 0.1.0
+kind: agentic_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: specified_non_routable
+
+purpose: >
+  Evaluate an advisory trade proposal through aggressive, neutral and conservative
+  risk perspectives, then return a structured risk review. No position or order
+  mutation is permitted.
+
+capability:
+  name: finance.risk.evaluate
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: finance.risk.evaluate
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+inputs:
+  required: [trade_proposal, evidence, policy_context]
+  optional: [portfolio_context, volatility_context, liquidity_context, market_regime]
+  forbidden: [provider, adapter, model, broker, account_id, api_key, order, execution_endpoint, policy_override]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: finance-risk-review.v1
+  fields:
+    - aggressive_case
+    - neutral_case
+    - conservative_case
+    - material_risks
+    - liquidity_risk
+    - volatility_risk
+    - concentration_risk
+    - data_quality_risk
+    - temporal_integrity_risk
+    - policy_breaches
+    - risk_score
+    - recommended_disposition
+    - evidence
+  recommended_disposition_enum: [ACCEPT_FOR_PORTFOLIO_REVIEW, REVISE, REJECT]
+  grants_transaction_authority: false
+
+permissions:
+  external_network: false
+  finance_read: [trade_proposal, evidence, policy_context, portfolio_context]
+  finance_write: []
+  transaction: none
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+policy:
+  refs: [finance-intelligence-safety-v1, finance-temporal-integrity-v1, finance-transaction-freeze-v1]
+  deterministic_constraints_are_authoritative: true
+  llm_may_override_deterministic_limit: false
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_contract_only_no_validated_binding
+
+fallback_policy: none
+
+validation:
+  reference_sources:
+    - TauricResearch/TradingAgents@v0.3.1 aggressive-neutral-conservative risk pattern
+  limitations:
+    - no Ginkgo eval pack yet
+    - no production portfolio/risk engine attached
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - three_perspective_output_test
+    - deterministic_limit_precedence_test
+    - missing_evidence_test
+    - temporal_integrity_risk_test
+    - no_transaction_authority_test
+    - reproducible_eval_pack
+    - reviewer_approval
+
+owner_domain: finance
