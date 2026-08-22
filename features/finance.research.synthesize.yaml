@@ -1,0 +1,112 @@
+# Domain Skill Contract — finance.research.synthesize
+id: finance.research.synthesize
+version: 0.1.0
+kind: agentic_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: specified_non_routable
+
+purpose: >
+  Synthesize specialist evidence and an explicit bull/bear debate into a bounded,
+  source-backed investment thesis with uncertainty and unresolved conflicts preserved.
+
+capability:
+  name: finance.research.synthesize
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: finance.research.synthesize
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+inputs:
+  required: [instrument, trade_date, analyst_reports, bull_case, bear_case, evidence]
+  optional: [macro_context, benchmark_context, market_regime]
+  forbidden: [provider, adapter, model, broker, account_id, execution_endpoint, auto_execute]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: finance-research-synthesis.v1
+  fields:
+    - thesis
+    - supporting_evidence
+    - contradicting_evidence
+    - bull_case
+    - bear_case
+    - unresolved_conflicts
+    - uncertainty
+    - data_quality_flags
+    - temporal_integrity_flags
+    - catalyst_window
+    - invalidation_conditions
+    - evidence
+  grants_transaction_authority: false
+
+permissions:
+  external_network: false
+  finance_read: [normalized_analysis, evidence]
+  finance_write: []
+  transaction: none
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+policy:
+  refs: [finance-intelligence-safety-v1, finance-temporal-integrity-v1]
+  rules:
+    - conflicting evidence must not be silently discarded
+    - unsourced numerical claims are invalid
+    - temporal-integrity flags propagate to output
+    - synthesis grants no transaction authority
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_contract_only_no_validated_binding
+
+fallback_policy: none
+
+validation:
+  reference_sources:
+    - TauricResearch/TradingAgents@v0.3.1 bull/bear research manager pattern
+  required_tests:
+    - preserves_material_bull_evidence
+    - preserves_material_bear_evidence
+    - propagates_temporal_integrity_flags
+    - rejects_unsourced_numeric_claims
+    - no_transaction_authority
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - adversarial_eval_pack
+    - evidence_grounding_tests
+    - contradictory_evidence_retention_test
+    - structured_output_schema_test
+    - reviewer_approval
+
+owner_domain: finance
