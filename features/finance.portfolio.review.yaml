@@ -1,0 +1,110 @@
+# Domain Skill Contract — finance.portfolio.review
+id: finance.portfolio.review
+version: 0.1.0
+kind: agentic_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: specified_non_routable
+
+purpose: >
+  Review an advisory trade proposal and risk evaluation against portfolio context
+  and deterministic policy constraints, returning an advisory disposition only.
+
+capability:
+  name: finance.portfolio.review
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: finance.portfolio.review
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+inputs:
+  required: [trade_proposal, risk_review, portfolio_context, policy_context]
+  optional: [benchmark_context, market_regime, cash_context]
+  forbidden: [provider, adapter, model, broker, account_id, api_key, order_payload, execution_endpoint, risk_limit_override, auto_execute]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: finance-portfolio-review.v1
+  fields:
+    - disposition
+    - rationale
+    - policy_checks
+    - concentration_effect
+    - exposure_effect
+    - liquidity_effect
+    - suggested_position_pct
+    - required_changes
+    - evidence
+    - execution_allowed
+  disposition_enum: [ADVISORY_ACCEPT, ADVISORY_REVISE, ADVISORY_REJECT]
+  execution_allowed: false
+  grants_transaction_authority: false
+
+permissions:
+  external_network: false
+  finance_read: [trade_proposal, risk_review, portfolio_context, policy_context]
+  finance_write: []
+  transaction: none
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+policy:
+  refs: [finance-intelligence-safety-v1, finance-transaction-freeze-v1]
+  deterministic_constraints_are_authoritative: true
+  llm_may_override_deterministic_limit: false
+  execution_allowed_caller_override: false
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+  note: advisory_portfolio_disposition_is_not_governance_approval
+
+external_gates: []
+
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_contract_only_no_validated_binding
+
+fallback_policy: none
+
+validation:
+  reference_sources:
+    - TauricResearch/TradingAgents@v0.3.1 portfolio-manager separation pattern
+  limitations:
+    - no production portfolio ledger attached
+    - no live broker/account state attached
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - deterministic_policy_precedence_test
+    - portfolio_context_required_test
+    - execution_allowed_false_invariant_test
+    - advisory_disposition_not_approval_test
+    - no_transaction_authority_test
+    - reproducible_eval_pack
+    - reviewer_approval
+
+owner_domain: finance

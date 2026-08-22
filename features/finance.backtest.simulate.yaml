@@ -1,0 +1,134 @@
+# Domain Skill Contract — finance.backtest.simulate
+id: finance.backtest.simulate
+version: 0.1.0
+kind: deterministic_simulation_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: specified_non_routable
+
+purpose: >
+  Simulate an advisory strategy against historical evidence using explicit
+  point-in-time constraints, costs and benchmark comparison. Simulation results
+  are evaluation evidence, not proof of future profitability.
+
+capability:
+  name: finance.backtest.simulate
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: finance.backtest.simulate
+  skill_version: 0.1.0
+  provider_neutral: true
+  deterministic_simulation: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+inputs:
+  required: [strategy_definition, universe, start_time, end_time, evidence_dataset, benchmark]
+  optional: [fees, slippage, spread, latency_model, position_limits, rebalance_frequency, random_seed]
+  forbidden: [provider, adapter, broker, account_id, api_key, live_market_order, live_execution, ignore_available_at]
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: finance-backtest-result.v1
+  fields:
+    - run_id
+    - strategy_version
+    - universe
+    - period
+    - benchmark
+    - assumptions
+    - trades
+    - equity_curve
+    - cagr
+    - sharpe
+    - sortino
+    - max_drawdown
+    - calmar
+    - win_rate
+    - profit_factor
+    - expected_value
+    - turnover
+    - volatility
+    - alpha
+    - beta
+    - information_ratio
+    - llm_api_cost
+    - temporal_integrity_report
+    - data_quality_report
+    - evidence
+  grants_transaction_authority: false
+
+permissions:
+  external_network: false
+  finance_read: [historical_evidence]
+  finance_write: [simulation_artifact]
+  transaction: none
+  pii: none
+  filesystem_write: scoped_artifact_only
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+policy:
+  refs: [finance-intelligence-safety-v1, finance-temporal-integrity-v1, finance-transaction-freeze-v1]
+  hard_rules:
+    - available_at_must_be_lte_simulation_time
+    - future_dated_evidence_is_excluded_and_reported
+    - costs_and_slippage_assumptions_are_recorded
+    - benchmark_is_recorded
+    - backtest_is_not_live_validation
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+
+external_gates: []
+
+routing:
+  routing_eligible: false
+  execution_scope: offline_simulation_only
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_contract_only_no_validated_engine_binding
+
+fallback_policy: none
+
+validation:
+  reference_sources:
+    - TauricResearch/TradingAgents@v0.3.1 backtesting and historical-analysis patterns
+    - Backtrader as candidate engine only
+  required_tests:
+    - future_fundamental_release_is_rejected
+    - future_news_is_rejected
+    - stale_data_is_flagged
+    - fees_slippage_are_applied
+    - benchmark_relative_metrics_are_reproducible
+    - same_seed_same_inputs_are_reproducible_where_engine_is_deterministic
+    - no_live_network_or_transaction_call
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - canonical_point_in_time_fixture_pack
+    - temporal_leakage_red_team_tests
+    - data_revision_provenance_tests
+    - cost_model_tests
+    - benchmark_metric_tests
+    - engine_adapter_decision
+    - reviewer_approval
+
+owner_domain: finance
