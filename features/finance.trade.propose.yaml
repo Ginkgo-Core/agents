@@ -1,0 +1,129 @@
+# Domain Skill Contract — finance.trade.propose
+id: finance.trade.propose
+version: 0.1.0
+kind: agentic_domain_skill
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A1
+status: specified_non_routable
+
+purpose: >
+  Produce an evidence-backed advisory trade proposal from normalized research
+  synthesis. This skill has no broker, exchange, custody or transaction authority.
+
+capability:
+  name: finance.trade.propose
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  request_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-request.schema.json
+  result: CapabilityResult v1
+  result_schema_ref: Ginkgo-Core/ai-stack/contracts/core/capability-result.schema.json
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+
+implementation_binding:
+  skill_id: finance.trade.propose
+  skill_version: 0.1.0
+  provider_neutral: true
+  adapter_id: null
+  provider: null
+  internal_routing_metadata: true
+
+inputs:
+  required: [instrument, trade_date, research_synthesis, evidence]
+  optional: [portfolio_context, time_horizon, benchmark, policy_context]
+  forbidden:
+    - skill_id
+    - skill_version
+    - provider
+    - adapter
+    - model
+    - broker
+    - account_id
+    - api_key
+    - order_type
+    - execution_endpoint
+    - execution_allowed
+    - auto_execute
+
+outputs:
+  contract: CapabilityResult v1
+  data_contract: finance-trade-proposal.v1
+  fields:
+    - instrument
+    - action
+    - confidence
+    - time_horizon
+    - thesis
+    - bull_case
+    - bear_case
+    - risk_score
+    - suggested_position_pct
+    - stop_conditions
+    - evidence
+    - model_evidence
+    - generated_at
+    - execution_allowed
+  action_enum: [BUY, HOLD, SELL, REDUCE, INCREASE]
+  execution_allowed: false
+  execution_allowed_caller_override: false
+
+permissions:
+  external_network: false
+  finance_read: [normalized_research, portfolio_context]
+  finance_write: []
+  transaction: none
+  pii: none
+  filesystem_write: none
+  shell: false
+  secrets:
+    caller_access: forbidden
+    adapter_managed_refs: []
+
+approval:
+  required: false
+  status: NOT_REQUIRED
+  note: advisory_analysis_only
+
+external_gates: []
+
+policy:
+  refs: [finance-intelligence-safety-v1, finance-transaction-freeze-v1]
+  deterministic_rules:
+    - execution_allowed_is_always_false
+    - policy_owned_risk_limits_cannot_be_overridden_by_caller
+    - proposal_does_not_authorize_transaction
+
+routing:
+  routing_eligible: false
+  live_execution: blocked
+  production_eligible: false
+  reason: feature_contract_only_no_validated_binding
+
+fallback_policy: none
+
+validation:
+  reference_sources:
+    - TauricResearch/TradingAgents@v0.3.1 trader pattern
+    - Ginkgo-Core/ginkgo-library:architectures/finance-intelligence-domain.md
+  limitations:
+    - no Ginkgo implementation benchmarked yet
+    - no broker adapter is attached
+    - no live transaction path exists
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - structured_output_schema_test
+    - evidence_required_test
+    - execution_allowed_false_invariant_test
+    - caller_cannot_supply_provider_or_broker_test
+    - deterministic_policy_boundary_test
+    - reproducible_eval_pack
+    - reviewer_approval
+
+owner_domain: finance
