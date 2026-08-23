@@ -1,0 +1,114 @@
+id: browser.task.execute
+version: 0.2.0
+kind: provider_bound_skill_candidate
+lifecycle_status: FEATURE
+maturity: F1
+level: L2
+autonomy_level: A0
+status: feature
+
+purpose: >
+  Execute a bounded goal-directed browser task under explicit origin,
+  permission, timeout and side-effect policy, returning normalized evidence.
+  This capability is distinct from deterministic browser.session.execute.
+
+capability:
+  name: browser.task.execute
+  contract_version: v1
+
+caller_contract:
+  request: CapabilityRequest v1
+  result: CapabilityResult v1
+  caller_selects: [capability.name, capability.contract_version]
+  domain_router_resolves: [skill_id, skill_version, adapter, provider]
+  executor_router_resolves: [executor]
+
+implementation_binding:
+  skill_id: goal-browser.task.execute
+  skill_version: 0.2.0
+  binding_id: browser-use.browser.task.execute
+  adapter_id: browser-use
+  provider: browser-use-runtime
+  internal_routing_metadata: true
+  caller_visible: false
+
+semantic_boundary:
+  browser_session_execute:
+    relation: distinct_capability
+    silent_fallback_allowed: false
+    reason: goal_directed_agentic_steps_are_not_proven_equivalent_to_bounded_deterministic_session_steps
+
+inputs:
+  required: [goal, allowed_origins, max_steps, timeout, side_effect_mode]
+  optional: [session_ref, evidence_level, download_policy, upload_policy]
+  forbidden:
+    - provider
+    - adapter
+    - executor
+    - model
+    - raw_cookie
+    - raw_token
+    - credential
+    - endpoint
+    - anti_bot_bypass
+    - stealth_mode
+
+outputs:
+  contract: CapabilityResult v1
+  candidate_data_contract: browser-task-result.v1
+  fields: [status, action_ledger, evidence_refs, normalized_result, warnings, provenance]
+
+permissions:
+  allowed_origins_required: true
+  raw_credentials_in_payload: false
+  anti_bot_bypass: forbidden
+  stealth_circumvention: forbidden
+  uploads: policy_controlled
+  downloads: policy_controlled
+
+side_effect_policy:
+  read_only:
+    approval_required: false
+    subject_to_identity_policy: true
+  external_write:
+    approval_or_domain_policy_interlock_required: true
+    examples: [submit, send, purchase, publish, delete, change_configuration]
+  external_platform_terms:
+    modeled_as_external_gate_or_policy_constraint: true
+    human_approval_can_override: false
+
+routing:
+  routing_eligible: false
+  execution_scope: specification_eval_only
+  production_eligible: false
+  reason: adapter_and_governed_e2e_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence: []
+  required_scenarios:
+    - capability_and_skill_identity_are_distinct
+    - disallowed_origin_is_rejected
+    - max_steps_is_enforced
+    - timeout_is_enforced
+    - raw_cookie_or_token_is_rejected
+    - read_only_task_records_action_ledger
+    - external_write_requires_policy_interlock
+    - anti_bot_bypass_request_is_rejected
+    - provider_name_in_public_request_is_rejected
+    - browser_session_execute_is_not_silent_fallback
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_browser_task_contract_in_ai_stack
+    - browser_use_adapter_implementation
+    - deterministic_local_fixture_harness
+    - negative_origin_and_mutation_tests
+    - credential_redaction_evidence
+    - governed_read_only_e2e
+    - reviewer_approval
+
+owner_domain: browser

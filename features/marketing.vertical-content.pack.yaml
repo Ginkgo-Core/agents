@@ -1,0 +1,134 @@
+id: marketing.vertical-content.pack
+version: 0.2.0
+kind: domain_skill_pack
+lifecycle_status: FEATURE
+maturity: F1
+level: L1
+autonomy_level: A0
+status: feature
+
+purpose: >
+  Define provider-neutral vertical-content capabilities with distinct internal
+  skill identities, campaign lineage, rights controls and performance feedback.
+
+caller_contract:
+  request: CapabilityRequest v1
+  result: CapabilityResult v1
+  caller_selects: [capability.name, capability.contract_version]
+  caller_forbidden_from_selecting:
+    - moneyprinterturbo
+    - shortgpt
+    - comfyui
+    - provider
+    - adapter
+    - tool
+    - executor
+    - graph_json
+    - checkpoint
+    - workflow_id
+
+capabilities:
+  - name: marketing.content.brief.generate
+    skill_id: content-core.brief.generate
+    side_effect_authority: generate_only
+  - name: marketing.content.script.generate
+    skill_id: content-core.script.generate
+    side_effect_authority: generate_only
+  - name: media.voice.generate
+    skill_id: media-core.voice.generate
+    side_effect_authority: asset_generation
+  - name: media.asset.select
+    skill_id: media-core.asset.select
+    side_effect_authority: read_select_only
+  - name: media.video.compose
+    skill_id: media-core.video.compose
+    side_effect_authority: asset_generation
+  - name: marketing.content.package
+    skill_id: content-core.package.generate
+    side_effect_authority: generate_only
+  - name: marketing.content.publish
+    skill_id: content-core.publish.execute
+    side_effect_authority: governed_external_write
+  - name: analytics.content.performance.read
+    skill_id: content-analytics.performance.read
+    side_effect_authority: read_only
+
+composition:
+  canonical_flow:
+    - marketing.content.brief.generate
+    - marketing.content.script.generate
+    - media.voice.generate
+    - media.asset.select
+    - media.video.compose
+    - marketing.content.package
+    - marketing.content.publish
+    - analytics.content.performance.read
+  revenue_feedback:
+    target_capabilities:
+      - sales.attribution.calculate
+      - sales.funnel.diagnose
+    requirement: propagate_campaign_batch_job_and_source_identity
+
+upstream_posture:
+  harry0703/MoneyPrinterTurbo:
+    role: pattern_source
+    optional_future_role: lab_adapter_candidate
+    public_capability_namespace: forbidden
+  RayVentura/ShortGPT:
+    role: pattern_source
+    public_capability_namespace: forbidden
+  Comfy-Org/ComfyUI:
+    role: media_runtime_candidate
+    integration_boundary: existing_creative_pyre_routing
+    public_capability_namespace: forbidden
+
+rights_and_compliance:
+  model_license_provenance_required: true
+  custom_node_license_provenance_required: true
+  voice_rights_required: true
+  likeness_rights_required_when_applicable: true
+  music_asset_license_required: true
+  source_asset_license_required: true
+  originality_gate_before_publish: true
+  content_fingerprint_required: true
+
+side_effect_policy:
+  publish_requires_policy_interlock: true
+  publish_requires_idempotency: true
+  publish_halt_path_required: true
+  generation_does_not_authorize_publish: true
+
+routing:
+  routing_eligible: false
+  execution_scope: specification_eval_only
+  production_eligible: false
+  reason: feature_not_validated
+
+fallback_policy: none
+
+validation:
+  evidence: []
+  required_scenarios:
+    - capability_and_skill_identity_are_distinct
+    - provider_or_upstream_name_rejected_from_public_request
+    - missing_asset_license_blocks_publish_candidate
+    - unauthorized_voice_or_likeness_blocks_candidate
+    - near_duplicate_is_detected
+    - generation_does_not_imply_publish_authority
+    - repeated_publish_request_is_idempotent
+    - content_cost_is_recordable
+    - campaign_identity_survives_to_performance_result
+    - fallback_remains_none
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: FEATURE
+  requires:
+    - typed_domain_contracts_or_reuse_of_existing_media_contracts
+    - rights_and_provenance_registry
+    - deterministic_positive_and_negative_tests
+    - publish_approval_and_idempotency_tests
+    - governed_e2e_with_non_customer_test_channel_or_fixture
+    - reviewer_approval
+
+owner_domain: marketing_media

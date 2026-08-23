@@ -1,0 +1,386 @@
+id: sales.lead-intelligence.pack
+version: 0.2.0
+kind: domain_skill_pack
+lifecycle_status: PROTOTYPE
+maturity: F2
+level: L3
+autonomy_level: A3
+status: feature
+
+purpose: >
+  Build governed, provider-neutral B2B lead batches from policy-eligible public or
+  licensed sources. The pack separates discovery, normalization, enrichment,
+  validation, qualification, deduplication, persistence and reporting. It replaces
+  dependence on a monolithic external research agent while keeping every provider,
+  browser, scraper, API and executor behind Ginkgo routing and policy boundaries.
+
+canonical_flow: >
+  TaskOps -> Executor Router -> Ginkgo agent loadout -> CapabilityRequest v1 ->
+  Capability Bus -> Sales Domain Router -> skill/version -> adapter/provider ->
+  CapabilityResult v1 -> Evidence -> governed persistence/report
+
+caller_contract:
+  request: CapabilityRequest v1
+  result: CapabilityResult v1
+  caller_selects:
+    - capability.name
+    - capability.contract_version
+    - business_input
+    - deadline
+    - max_cost
+    - data_classification
+    - evidence_requirement
+  caller_forbidden_from_selecting:
+    - skill
+    - binding
+    - tool
+    - adapter
+    - provider
+    - executor
+    - model
+    - workflow_id
+    - endpoint
+    - proxy
+    - browser_profile
+    - credential
+    - anti_bot_strategy
+
+composes_existing_capabilities:
+  - sales.lead.discover
+  - sales.lead.normalize
+  - sales.lead.enrich
+  - sales.lead.qualify
+  - sales.pipeline.record
+
+capabilities:
+  - name: sales.lead.validate
+    skill_id: sales-core.lead.validate
+    behavior: >
+      Validate contact fields and evidence without fabricating channel availability.
+      A telephone number is not equivalent to a validated WhatsApp account.
+    side_effect_authority: read_analysis_only
+
+  - name: sales.lead.deduplicate
+    skill_id: sales-core.lead.deduplicate
+    behavior: >
+      Resolve duplicate business records using stable source IDs, normalized phone,
+      domain/site and normalized organization plus location while preserving provenance.
+    side_effect_authority: local_transform_only
+
+  - name: sales.lead.batch.build
+    skill_id: sales-core.lead.batch.build
+    behavior: >
+      Compose discovery, normalization, enrichment, validation, qualification and
+      deduplication until the requested accepted-lead target is reached or policy-eligible
+      sources are reasonably exhausted. Raw result count never equals accepted lead count.
+    side_effect_authority: read_generate_only
+
+  - name: sales.lead.report.generate
+    skill_id: sales-core.lead.report.generate
+    behavior: >
+      Produce an evidence-backed execution and funnel report without initiating outreach.
+    side_effect_authority: generate_only
+
+lead_batch_business_input:
+  required:
+    - target_accepted_leads
+    - icp_ref
+    - geography_scope
+  optional:
+    - business_categories
+    - minimum_score
+    - required_contact_channels
+    - max_queries
+    - max_candidates
+    - source_policy_ref
+    - report_format
+  defaults:
+    minimum_score: 60
+    report_format: structured
+  forbidden:
+    - provider_name
+    - scraper_name
+    - api_name
+    - tool_name
+    - raw_query_engine_flags
+    - proxy_credentials
+
+contact_validation:
+  statuses:
+    phone: [VALID, INVALID, UNKNOWN, NOT_CHECKED]
+    whatsapp: [VALID, INVALID, UNKNOWN, NOT_CHECKED]
+  rules:
+    - phone_available_does_not_imply_whatsapp_valid
+    - wa_me_page_open_is_not_conclusive_validation
+    - no_message_may_be_sent_for_validation
+    - no_call_may_be_placed_for_validation
+    - whatsapp_valid_requires_explicit_source_or_policy_approved_provider_evidence
+    - unknown_is_preferred_to_fabricated_confirmation
+
+qualification:
+  score_range: [0, 100]
+  default_dimensions:
+    commercial_fit: 30
+    digital_presence: 15
+    operational_volume_signal: 20
+    automation_opportunity: 25
+    data_quality: 10
+  bands:
+    HOT: [80, 100]
+    GOOD: [60, 79]
+    MEDIUM: [40, 59]
+    LOW: [0, 39]
+  default_accept_bands: [HOT, GOOD]
+  requirements:
+    - score_reasoning_must_reference_observable_evidence
+    - inferred_fields_must_be_labeled
+    - missing_fields_must_not_be_fabricated
+    - icp_ref_must_be_versioned
+
+accepted_lead_invariant:
+  expression: >
+    accepted = unique AND qualification_band in allowed_bands AND policy_eligible_source
+    AND required_contact_evidence_satisfied
+  raw_results_are_not_accepted_leads: true
+
+source_policy:
+  use_only_policy_eligible_sources: true
+  public_or_licensed_business_data_only: true
+  private_individual_targeting: false
+  provenance_required: true
+  retention_policy_required: true
+  terms_or_license_review_required: true
+  anti_bot_or_rate_limit_bypass_authorized: false
+  robots_and_source_policy_must_be_respected: true
+  google_maps_scraping_for_lead_database:
+    default: blocked
+    reason: terms_review_required
+  provider_priority_is_router_policy_not_caller_input: true
+
+provider_candidates:
+  firecrawl:
+    role: web_discovery_and_enrichment_candidate
+    status: PROTOTYPE
+    routing_eligible: false
+    implementation_ref: Ginkgo-Seeds/ginkgo-connect#6
+    notes:
+      - fixture-backed read-only adapter prototype exists
+      - use search/scrape/extract only through a Ginkgo adapter
+      - cloud and self-hosted postures require separate cost/license decisions
+      - no live provider E2E has been promoted as evidence yet
+  ledger-lead-finder:
+    role: legacy_optional_adapter_candidate
+    status: OBSERVED_UNVERIFIED
+    routing_eligible: false
+    notes:
+      - never becomes the public capability boundary
+      - retain only if contract, terms, provenance and quality tests pass
+  gosom-google-maps-scraper:
+    role: lab_only_source_candidate
+    status: FEATURE_RESTRICTED
+    routing_eligible: false
+    notes:
+      - useful technical benchmark
+      - source-target terms risk requires explicit review before any governed use
+
+agent_loadout:
+  planner:
+    role: generate bounded query matrix and coverage plan from ICP/geography
+    authority: analysis_only
+  scout:
+    role: discover candidate businesses from policy-eligible sources
+    authority: read_only
+  researcher:
+    role: enrich business records and attach provenance
+    authority: read_only
+  validator:
+    role: validate contact/evidence statuses without communication side effects
+    authority: read_analysis_only
+  qualifier:
+    role: score and classify against versioned ICP
+    authority: analysis_only
+  deduplicator:
+    role: canonicalize and merge duplicate candidates
+    authority: local_transform_only
+  registrar:
+    role: persist approved records through sales.pipeline.record
+    authority: governed_write
+  reporter:
+    role: generate funnel and quality report
+    authority: generate_only
+
+executor_policy:
+  executor_selected_by: Executor Router
+  eligible_future_executors:
+    - n8n
+    - Hermes
+    - OpenClaw
+    - Sylvia
+    - future_governed_executor
+  external_agent_dependency_required: false
+  manus_required: false
+
+risk_classes:
+  READ:
+    examples: [discover, enrich, validate_source_evidence]
+    default: allowed_if_source_policy_passes
+  MODIFY:
+    examples: [persist_crm_record, update_existing_lead]
+    default: governed_write_with_idempotency
+  COMMUNICATE:
+    examples: [whatsapp_message, email, call, form_submit]
+    default: denied_in_this_pack
+  TRANSACTION:
+    examples: [purchase_data, paid_enrichment_without_budget, payment]
+    default: denied_without_separate_capability_and_policy
+
+outreach_boundary:
+  this_pack_authorizes_outreach: false
+  downstream_capabilities:
+    - sales.outreach.compose
+    - sales.sequence.plan
+  external_send_requires_separate_capability: true
+  consent_and_suppression_check_required_before_send: true
+
+persistence:
+  capability: sales.pipeline.record
+  requirements:
+    - idempotency_key
+    - source_provenance
+    - first_seen_at
+    - last_validated_at
+    - validation_statuses
+    - qualification_score
+    - qualification_band
+    - evidence_refs
+  dedup_keys_priority:
+    - stable_source_id
+    - normalized_phone
+    - normalized_domain
+    - canonical_website
+    - normalized_org_name_plus_city
+
+report_contract:
+  required_metrics:
+    - queries_executed
+    - raw_results
+    - unique_businesses
+    - phones_found
+    - phones_valid
+    - whatsapp_valid
+    - whatsapp_unknown
+    - whatsapp_invalid
+    - qualified_hot
+    - qualified_good
+    - qualified_medium
+    - duplicates_removed
+    - crm_saved
+    - rejected
+  quality_metrics:
+    - phone_coverage
+    - whatsapp_validation_rate
+    - qualification_rate
+    - duplicate_rate
+    - crm_acceptance_rate
+  limitation_flag: VALIDATION_CAPABILITY_LIMITATION
+
+scheduling:
+  owned_by: TaskOps
+  skill_does_not_own_cron: true
+  reference_operation:
+    target: 200 accepted leads per daily run
+    timezone: America/Sao_Paulo
+    historical_reference_time: "12:00"
+
+observability:
+  correlation_required: true
+  per_stage_counts_required: true
+  provider_costs_required: true
+  rejected_reason_required: true
+  evidence_lineage_required: true
+  source_policy_decision_required: true
+
+fallback_policy:
+  default: none
+  generic_fallback: same_semantics_only
+  cross_source_without_equivalent_terms_and_evidence: forbidden
+  downgrade_whatsapp_valid_to_phone_available: forbidden
+
+prototype_evidence:
+  implementation_repo: Ginkgo-Seeds/ginkgo-connect
+  implementation_pr: 6
+  validated_head: caab752c2170c34d1e4b669d5548b8535638900a
+  ci_run: 32527413782
+  ci_conclusion: SUCCESS
+  implementation_scope:
+    - deterministic_lead_quality_engine
+    - firecrawl_read_only_discovery_adapter
+    - source_policy_fail_closed_gate
+    - phone_whatsapp_state_separation
+    - evidence_backed_qualification
+    - deterministic_deduplication
+    - provenance_laundering_prevention
+    - raw_vs_accepted_target_semantics
+  tests:
+    lead_intelligence_core: 14/14
+    firecrawl_adapter: 5/5
+    core_package_total: 40/40
+    db_integration: 31/31
+  gates:
+    prettier: PASS
+    lint: PASS
+    typecheck: PASS
+    test: PASS
+    build: PASS
+    infrastructure_smoke: PASS
+  live_provider_call_performed: false
+  secrets_required: false
+  production_routing_enabled: false
+
+routing:
+  routing_eligible: false
+  execution_scope: prototype_eval_only
+  production_eligible: false
+  reason: prototype_not_validated
+
+validation:
+  evidence:
+    - Ginkgo-Seeds/ginkgo-connect#6
+    - commit:caab752c2170c34d1e4b669d5548b8535638900a
+    - actions-run:32527413782
+    - fixture:lead-intelligence-core-14-of-14
+    - fixture:firecrawl-adapter-5-of-5
+  satisfied_scenarios:
+    - phone_available_does_not_mark_whatsapp_valid
+    - wa_me_open_does_not_mark_whatsapp_valid
+    - unknown_whatsapp_is_preserved
+    - duplicate_across_queries_is_merged_once
+    - source_without_terms_decision_is_blocked_before_transport
+    - blocked_provenance_is_not_laundered_by_deduplication
+    - low_or_unevidenced_candidate_is_not_artificially_promoted
+    - raw_results_do_not_satisfy_accepted_target
+  remaining_scenarios:
+    - two_hundred_accepted_lead_governed_e2e
+    - caller_provider_injection_is_rejected_at_runtime_boundary
+    - anti_bot_bypass_request_is_rejected_at_runtime_boundary
+    - crm_write_requires_idempotency_key_e2e
+    - communication_side_effect_is_denied_e2e
+    - transaction_side_effect_is_denied_e2e
+    - provider_failure_does_not_trigger_cross_semantics_fallback
+    - report_reconciles_stage_counts_e2e
+    - cost_and_rate_limit_observability_e2e
+
+promotion:
+  allowed: false
+  lifecycle_ceiling: PROTOTYPE
+  next_target: F3_VALIDATED
+  requires:
+    - governed_read_only_firecrawl_e2e
+    - exact_source_terms_cost_retention_decision
+    - qualification_eval_matrix_completion
+    - governed_persistence_e2e_with_idempotency
+    - cost_and_rate_limit_observability
+    - two_hundred_accepted_lead_e2e
+    - reviewer_approval
+
+owner_domain: sales
