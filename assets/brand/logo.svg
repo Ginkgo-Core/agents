@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="28" fill="#f8fbfd"/>
+  <g fill="#0b2033" stroke="#071827" stroke-width="4" stroke-linejoin="round">
+    <path d="M52 86 68 48l22 31 18-52 20 45 20-45 18 52 22-31 16 38-13 18H65z"/>
+    <path d="M80 95 54 111l5 73 43 31 16-40-9-55z"/>
+    <path d="M176 95l26 16-5 73-43 31-16-40 9-55z"/>
+    <path d="M128 82 94 110l9 76 25 29 25-29 9-76z"/>
+  </g>
+  <g fill="none" stroke="#dce9ef" stroke-width="5" stroke-linecap="round">
+    <path d="M74 127l22 8M182 127l-22 8M114 128h28M111 159l17 14 17-14"/>
+  </g>
+  <g fill="none" stroke="#13cfe3" stroke-width="4" stroke-linecap="round">
+    <path d="M128 45v43M74 75l18 22v20M182 75l-18 22v20M82 151v27l18 13M174 151v27l-18 13"/>
+  </g>
+  <g fill="#13cfe3">
+    <circle cx="128" cy="45" r="5"/><circle cx="74" cy="75" r="5"/><circle cx="182" cy="75" r="5"/><circle cx="82" cy="151" r="5"/><circle cx="174" cy="151" r="5"/>
+  </g>
+  <polygon points="128,99 138,109 128,119 118,109" fill="#8b5cf6" stroke="#f8fbfd" stroke-width="3"/>
+</svg>
