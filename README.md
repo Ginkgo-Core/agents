@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/logo.svg" alt="Ginkgo Agents project emblem" width="180" />
+</p>
+
 # Ginkgo Agents
 
 Laboratório operacional da Ginkgo AI Systems para **agentes especializados, skills reutilizáveis, evals, contratos e automações agentic-ready**.
