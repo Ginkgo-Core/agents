@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ginkgo.local/schemas/skill-definition.v1.schema.json",
+  "title": "Ginkgo Skill Definition v1",
+  "description": "Provider-agnostic, agent-facing operational competence contract. Tenant bindings, raw credentials, provider selection and executor selection are intentionally outside this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "lifecycle_status",
+    "outcome",
+    "requires",
+    "permissions_required",
+    "result_contract",
+    "evidence",
+    "fallback_policy",
+    "routing_eligible",
+    "production_eligible"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ginkgo.skill.v1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$",
+      "minLength": 3,
+      "maxLength": 160
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "lifecycle_status": {
+      "enum": ["FEATURE", "PROTOTYPE", "VALIDATED", "INTEGRATED", "PRODUCTION", "DEPRECATED", "REJECTED"]
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "description"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_\\.-]*$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capabilities"],
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$"
+          }
+        }
+      }
+    },
+    "permissions_required": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_\\.-]*$"
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Declarative execution constraints only. Must not encode provider/executor routing.",
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean", "null"]
+      }
+    },
+    "result_contract": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "contract": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "fallback_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "enum": ["none", "same_semantics_only"]
+        }
+      }
+    },
+    "routing_eligible": {
+      "type": "boolean"
+    },
+    "production_eligible": {
+      "type": "boolean"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Non-authoritative descriptive metadata. Must not contain credentials, tenant bindings, provider selection or executor selection.",
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean", "null"]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "lifecycle_status": {
+            "const": "PRODUCTION"
+          }
+        }
+      },
+      "then": {},
+      "else": {
+        "properties": {
+          "production_eligible": {
+            "const": false
+          }
+        }
+      }
+    }
+  ]
+}
